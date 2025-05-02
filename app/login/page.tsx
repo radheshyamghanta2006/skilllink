@@ -29,7 +29,11 @@ export default function LoginPage() {
     setIsLoading(true)
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      // Clear any previous session data first to prevent conflicts
+      await supabase.auth.signOut({ scope: 'local' })
+      
+      // Attempt to sign in with password
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       })
@@ -41,9 +45,10 @@ export default function LoginPage() {
         description: "You have successfully logged in.",
       })
 
-      router.push("/dashboard")
-      router.refresh()
+      // Use replace instead of push to prevent going back to login page
+      router.replace("/dashboard")
     } catch (error: any) {
+      console.error("Login error:", error)
       toast({
         title: "Error",
         description: error.message || "Invalid login credentials.",

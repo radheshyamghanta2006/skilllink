@@ -67,15 +67,27 @@ export function Navbar() {
 
   const handleLogout = async () => {
     try {
-      await supabase.auth.signOut()
+      // Sign out from Supabase Auth
+      const { error } = await supabase.auth.signOut({ scope: 'local' })
+      
+      if (error) {
+        throw error
+      }
+      
+      // Clear user state
       setUser(null)
+      
+      // Notify user
       toast({
         title: "Logged out",
         description: "You have been successfully logged out.",
       })
+      
+      // Navigate to home page and refresh to clear any cached state
       router.push("/")
       router.refresh()
     } catch (error) {
+      console.error("Logout error:", error)
       toast({
         title: "Error",
         description: "Failed to log out. Please try again.",
