@@ -10,46 +10,6 @@ import { Badge } from "@/components/ui/badge"
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 import { MapPin, Star, ArrowRight } from "lucide-react"
 
-// Sample data for featured providers
-const dummyProviders = [
-  {
-    id: "1",
-    name: "Alex Johnson",
-    profile_image: "/placeholder.svg?height=300&width=300",
-    location: "New York, NY",
-    skills: [{ skill_name: "Piano Lessons", category: "Music" }],
-    rating: 4.9,
-    reviews_count: 28,
-  },
-  {
-    id: "2",
-    name: "Maria Garcia",
-    profile_image: "/placeholder.svg?height=300&width=300",
-    location: "Los Angeles, CA",
-    skills: [{ skill_name: "Yoga Instructor", category: "Fitness" }],
-    rating: 5.0,
-    reviews_count: 42,
-  },
-  {
-    id: "3",
-    name: "David Kim",
-    profile_image: "/placeholder.svg?height=300&width=300",
-    location: "Chicago, IL",
-    skills: [{ skill_name: "Web Development", category: "Technology" }],
-    rating: 4.8,
-    reviews_count: 35,
-  },
-  {
-    id: "4",
-    name: "Sarah Patel",
-    profile_image: "/placeholder.svg?height=300&width=300",
-    location: "Austin, TX",
-    skills: [{ skill_name: "Cooking Classes", category: "Cooking" }],
-    rating: 4.7,
-    reviews_count: 19,
-  },
-]
-
 export function FeaturedProviders() {
   const [providers, setProviders] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -59,9 +19,63 @@ export function FeaturedProviders() {
   useEffect(() => {
     const fetchProviders = async () => {
       try {
-        // In a real app, this would fetch from the database
-        // For demo purposes, we'll use the dummy data
-        setProviders(dummyProviders)
+        // Fetch users with role 'provider' or 'both'
+        const { data: users, error: usersError } = await supabase
+          .from('users')
+          .select('id, name, profile_image, location')
+          .in('role', ['provider', 'both'])
+          .limit(4)
+          .order('created_at', { ascending: false })
+
+        if (usersError) throw usersError
+
+        if (!users || users.length === 0) {
+          setProviders([])
+          return
+        }
+
+        // Get the user IDs to fetch related data
+        const userIds = users.map(user => user.id)
+
+        // Fetch skills for these users
+        const { data: skills, error: skillsError } = await supabase
+          .from('skills')
+          .select('user_id, skill_name, category')
+          .in('user_id', userIds)
+          .eq('intent', 'provider')
+
+        if (skillsError) throw skillsError
+
+        // Calculate average ratings for these users
+        const { data: reviewStats, error: reviewsError } = await supabase
+          .from('reviews')
+          .select('provider_id, rating')
+          .in('provider_id', userIds)
+
+        if (reviewsError) throw reviewsError
+
+        // Process the data to create provider objects with their skills and ratings
+        const enhancedProviders = users.map(user => {
+          // Get skills for this user
+          const userSkills = skills?.filter(skill => skill.user_id === user.id) || []
+          
+          // Calculate average rating for this user
+          const userReviews = reviewStats?.filter(review => review.provider_id === user.id) || []
+          const totalRating = userReviews.reduce((sum, review) => sum + review.rating, 0)
+          const avgRating = userReviews.length > 0 ? totalRating / userReviews.length : 0
+          
+          return {
+            ...user,
+            skills: userSkills.map(skill => ({ 
+              skill_name: skill.skill_name, 
+              category: skill.category 
+            })),
+            rating: avgRating || 4.5, // Default rating if no reviews
+            reviews_count: userReviews.length || 0
+          }
+        })
+
+        setProviders(enhancedProviders)
       } catch (error) {
         console.error("Error fetching featured providers:", error)
       } finally {
@@ -70,7 +84,7 @@ export function FeaturedProviders() {
     }
 
     fetchProviders()
-  }, [])
+  }, [supabase])
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -116,55 +130,65 @@ export function FeaturedProviders() {
             viewport={{ once: true, margin: "-100px" }}
             className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6"
           >
-            {providers.map((provider) => (
-              <motion.div key={provider.id} variants={itemVariants}>
-                <Card className="h-full overflow-hidden hover:shadow-lg transition-shadow">
-                  <div className="relative h-48">
-                    <Image
-                      src={provider.profile_image || "/placeholder.svg"}
-                      alt={provider.name}
-                      fill
-                      className="object-cover"
-                    />
-                  </div>
-                  <CardContent className="p-6">
-                    <h3 className="text-xl font-semibold mb-2">{provider.name}</h3>
-                    <div className="flex items-center mb-3 text-gray-600">
-                      <MapPin className="h-4 w-4 mr-1" />
-                      <span className="text-sm">{provider.location}</span>
+            {providers.length > 0 ? (
+              providers.map((provider) => (
+                <motion.div key={provider.id} variants={itemVariants}>
+                  <Card className="h-full overflow-hidden hover:shadow-lg transition-shadow">
+                    <div className="relative h-48">
+                      <Image
+                        src={provider.profile_image || "/placeholder.svg"}
+                        alt={provider.name}
+                        fill
+                        className="object-cover"
+                      />
                     </div>
-                    <div className="flex items-center mb-4">
-                      <div className="flex">
-                        {[1, 2, 3, 4, 5].map((star) => (
-                          <Star
-                            key={star}
-                            className={`h-4 w-4 ${
-                              star <= Math.round(provider.rating) ? "text-yellow-500 fill-yellow-500" : "text-gray-300"
-                            }`}
-                          />
-                        ))}
+                    <CardContent className="p-6">
+                      <h3 className="text-xl font-semibold mb-2">{provider.name}</h3>
+                      <div className="flex items-center mb-3 text-gray-600">
+                        <MapPin className="h-4 w-4 mr-1" />
+                        <span className="text-sm">{provider.location || "Location not specified"}</span>
                       </div>
-                      <span className="ml-2 text-sm text-gray-600">({provider.reviews_count} reviews)</span>
-                    </div>
-                    <div className="space-y-2">
-                      {provider.skills.map((skill: any, index: number) => (
-                        <Badge key={index} variant="outline" className="bg-purple-50 mr-2">
-                          {skill.skill_name}
-                        </Badge>
-                      ))}
-                    </div>
-                  </CardContent>
-                  <CardFooter className="p-6 pt-0">
-                    <Button
-                      onClick={() => router.push(`/provider/${provider.id}`)}
-                      className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
-                    >
-                      View Profile
-                    </Button>
-                  </CardFooter>
-                </Card>
-              </motion.div>
-            ))}
+                      <div className="flex items-center mb-4">
+                        <div className="flex">
+                          {[1, 2, 3, 4, 5].map((star) => (
+                            <Star
+                              key={star}
+                              className={`h-4 w-4 ${
+                                star <= Math.round(provider.rating) ? "text-yellow-500 fill-yellow-500" : "text-gray-300"
+                              }`}
+                            />
+                          ))}
+                        </div>
+                        <span className="ml-2 text-sm text-gray-600">({provider.reviews_count} reviews)</span>
+                      </div>
+                      <div className="space-y-2">
+                        {provider.skills && provider.skills.length > 0 ? (
+                          provider.skills.map((skill: any, index: number) => (
+                            <Badge key={index} variant="outline" className="bg-purple-50 mr-2">
+                              {skill.skill_name}
+                            </Badge>
+                          ))
+                        ) : (
+                          <p className="text-sm text-gray-500">No skills listed</p>
+                        )}
+                      </div>
+                    </CardContent>
+                    <CardFooter className="p-6 pt-0">
+                      <Button
+                        onClick={() => router.push(`/provider/${provider.id}`)}
+                        className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+                      >
+                        View Profile
+                      </Button>
+                    </CardFooter>
+                  </Card>
+                </motion.div>
+              ))
+            ) : (
+              <div className="col-span-4 text-center py-10">
+                <p className="text-gray-500">No providers found. Check back soon!</p>
+              </div>
+            )}
           </motion.div>
         )}
       </div>

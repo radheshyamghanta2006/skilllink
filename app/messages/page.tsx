@@ -61,7 +61,7 @@ export default function MessagesPage() {
   }, [])
 
   useEffect(() => {
-    if (activeConversation) {
+    if (activeConversation && user) {
       fetchMessages(activeConversation.id)
 
       // Subscribe to new messages
@@ -85,7 +85,7 @@ export default function MessagesPage() {
         supabase.removeChannel(channel)
       }
     }
-  }, [activeConversation])
+  }, [activeConversation, user])
 
   useEffect(() => {
     scrollToBottom()
@@ -115,12 +115,11 @@ export default function MessagesPage() {
       ])
 
       if (userIds.size === 0) {
-        // No conversations yet
         setConversations([])
         return
       }
 
-      // Get user details for each conversation
+      // Get user details for each conversation partner
       const { data: users, error: usersError } = await supabase
         .from("users")
         .select("id, name, profile_image")
@@ -128,35 +127,48 @@ export default function MessagesPage() {
 
       if (usersError) throw usersError
 
-      // For demo purposes, if no real conversations exist, create some dummy ones
-      if (users && users.length > 0) {
-        setConversations(users)
-      } else {
-        // Generate dummy conversations
-        setConversations([
-          {
-            id: "dummy-1",
-            name: "Jane Smith",
-            profile_image: "/placeholder.svg?height=40&width=40",
-            last_message: "Hi there! Are you available for a session tomorrow?",
-            last_message_time: new Date().toISOString(),
-          },
-          {
-            id: "dummy-2",
-            name: "John Doe",
-            profile_image: "/placeholder.svg?height=40&width=40",
-            last_message: "Thanks for the great yoga session!",
-            last_message_time: new Date(Date.now() - 86400000).toISOString(),
-          },
-          {
-            id: "dummy-3",
-            name: "Alex Johnson",
-            profile_image: "/placeholder.svg?height=40&width=40",
-            last_message: "I'd like to book another piano lesson next week.",
-            last_message_time: new Date(Date.now() - 172800000).toISOString(),
-          },
-        ])
+      if (!users || users.length === 0) {
+        setConversations([])
+        return
       }
+
+      // Get last message for each conversation to display in the list
+      const enhancedConversations = await Promise.all(
+        users.map(async (conversationPartner) => {
+          // Get the most recent message for this conversation
+          const { data: lastMessage, error: messageError } = await supabase
+            .from("messages")
+            .select("*")
+            .or(`and(sender_id.eq.${userId},recipient_id.eq.${conversationPartner.id}),and(sender_id.eq.${conversationPartner.id},recipient_id.eq.${userId})`)
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .single()
+
+          if (messageError) {
+            console.error("Error fetching last message:", messageError)
+            return {
+              ...conversationPartner,
+              last_message: null,
+              last_message_time: null
+            }
+          }
+
+          return {
+            ...conversationPartner,
+            last_message: lastMessage?.content,
+            last_message_time: lastMessage?.created_at
+          }
+        })
+      )
+
+      // Sort conversations by the most recent message
+      const sortedConversations = enhancedConversations.sort((a, b) => {
+        if (!a.last_message_time) return 1
+        if (!b.last_message_time) return -1
+        return new Date(b.last_message_time).getTime() - new Date(a.last_message_time).getTime()
+      })
+
+      setConversations(sortedConversations)
     } catch (error) {
       console.error("Error fetching conversations:", error)
       toast({
@@ -167,19 +179,14 @@ export default function MessagesPage() {
     }
   }
 
-  const fetchMessages = async (conversationId: string) => {
+  const fetchMessages = async (conversationPartnerId: string) => {
     try {
-      if (conversationId.startsWith("dummy")) {
-        // Generate dummy messages for demo
-        const dummyMessages = generateDummyMessages(conversationId)
-        setMessages(dummyMessages)
-        return
-      }
+      if (!user) return
 
       const { data, error } = await supabase
         .from("messages")
         .select("*")
-        .or(`sender_id.eq.${user.id},recipient_id.eq.${user.id}`)
+        .or(`and(sender_id.eq.${user.id},recipient_id.eq.${conversationPartnerId}),and(sender_id.eq.${conversationPartnerId},recipient_id.eq.${user.id})`)
         .order("created_at", { ascending: true })
 
       if (error) throw error
@@ -187,7 +194,12 @@ export default function MessagesPage() {
       setMessages(data || [])
 
       // Mark messages as read
-      await supabase.from("messages").update({ is_read: true }).eq("recipient_id", user.id).eq("is_read", false)
+      await supabase
+        .from("messages")
+        .update({ is_read: true })
+        .eq("recipient_id", user.id)
+        .eq("sender_id", conversationPartnerId)
+        .eq("is_read", false)
     } catch (error) {
       console.error("Error fetching messages:", error)
       toast({
@@ -198,112 +210,12 @@ export default function MessagesPage() {
     }
   }
 
-  const generateDummyMessages = (conversationId: string) => {
-    const otherUser = conversations.find((c) => c.id === conversationId)
-
-    if (conversationId === "dummy-1") {
-      return [
-        {
-          id: "msg-1",
-          sender_id: otherUser.id,
-          recipient_id: user.id,
-          content: "Hi there! I saw your profile and I'm interested in your web development skills.",
-          created_at: new Date(Date.now() - 3600000).toISOString(),
-        },
-        {
-          id: "msg-2",
-          sender_id: user.id,
-          recipient_id: otherUser.id,
-          content: "Hello! Thanks for reaching out. What kind of project are you working on?",
-          created_at: new Date(Date.now() - 3500000).toISOString(),
-        },
-        {
-          id: "msg-3",
-          sender_id: otherUser.id,
-          recipient_id: user.id,
-          content: "I'm building a personal portfolio website and need some help with the frontend.",
-          created_at: new Date(Date.now() - 3400000).toISOString(),
-        },
-        {
-          id: "msg-4",
-          sender_id: otherUser.id,
-          recipient_id: user.id,
-          content: "Are you available for a session tomorrow?",
-          created_at: new Date(Date.now() - 3300000).toISOString(),
-        },
-      ]
-    } else if (conversationId === "dummy-2") {
-      return [
-        {
-          id: "msg-5",
-          sender_id: user.id,
-          recipient_id: otherUser.id,
-          content: "How did you find today's yoga session?",
-          created_at: new Date(Date.now() - 86500000).toISOString(),
-        },
-        {
-          id: "msg-6",
-          sender_id: otherUser.id,
-          recipient_id: user.id,
-          content: "It was amazing! I feel so relaxed now.",
-          created_at: new Date(Date.now() - 86400000).toISOString(),
-        },
-        {
-          id: "msg-7",
-          sender_id: otherUser.id,
-          recipient_id: user.id,
-          content: "Thanks for the great yoga session!",
-          created_at: new Date(Date.now() - 86300000).toISOString(),
-        },
-      ]
-    } else {
-      return [
-        {
-          id: "msg-8",
-          sender_id: otherUser.id,
-          recipient_id: user.id,
-          content: "Your piano lessons have been so helpful.",
-          created_at: new Date(Date.now() - 173000000).toISOString(),
-        },
-        {
-          id: "msg-9",
-          sender_id: user.id,
-          recipient_id: otherUser.id,
-          content: "I'm glad you're enjoying them! You're making great progress.",
-          created_at: new Date(Date.now() - 172900000).toISOString(),
-        },
-        {
-          id: "msg-10",
-          sender_id: otherUser.id,
-          recipient_id: user.id,
-          content: "I'd like to book another piano lesson next week.",
-          created_at: new Date(Date.now() - 172800000).toISOString(),
-        },
-      ]
-    }
-  }
-
   const sendMessage = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (!newMessage.trim() || !activeConversation) return
+    if (!newMessage.trim() || !activeConversation || !user) return
 
     try {
-      if (activeConversation.id.startsWith("dummy")) {
-        // For demo, just add to UI
-        const newMsg = {
-          id: `msg-new-${Date.now()}`,
-          sender_id: user.id,
-          recipient_id: activeConversation.id,
-          content: newMessage,
-          created_at: new Date().toISOString(),
-        }
-
-        setMessages([...messages, newMsg])
-        setNewMessage("")
-        return
-      }
-
       const { data, error } = await supabase
         .from("messages")
         .insert([
@@ -311,6 +223,7 @@ export default function MessagesPage() {
             sender_id: user.id,
             recipient_id: activeConversation.id,
             content: newMessage,
+            is_read: false,
           },
         ])
         .select()
@@ -319,6 +232,18 @@ export default function MessagesPage() {
       if (error) throw error
 
       setMessages([...messages, data])
+      
+      // Update the last_message in conversations list
+      setConversations(conversations.map(conv => 
+        conv.id === activeConversation.id 
+          ? { 
+              ...conv, 
+              last_message: newMessage,
+              last_message_time: new Date().toISOString() 
+            } 
+          : conv
+      ))
+      
       setNewMessage("")
     } catch (error) {
       console.error("Error sending message:", error)
@@ -335,6 +260,7 @@ export default function MessagesPage() {
   }
 
   const getInitials = (name: string) => {
+    if (!name) return ""
     return name
       .split(" ")
       .map((n) => n[0])
@@ -436,30 +362,36 @@ export default function MessagesPage() {
                 </div>
                 <CardContent className="flex-grow overflow-y-auto p-4">
                   <div className="space-y-4">
-                    {messages.map((message) => (
-                      <div
-                        key={message.id}
-                        className={`flex ${message.sender_id === user.id ? "justify-end" : "justify-start"}`}
-                      >
+                    {messages.length > 0 ? (
+                      messages.map((message) => (
                         <div
-                          className={`max-w-[70%] rounded-lg p-3 ${
-                            message.sender_id === user.id ? "bg-purple-600 text-white" : "bg-gray-100 text-gray-800"
-                          }`}
+                          key={message.id}
+                          className={`flex ${message.sender_id === user.id ? "justify-end" : "justify-start"}`}
                         >
-                          <p>{message.content}</p>
                           <div
-                            className={`text-xs mt-1 ${
-                              message.sender_id === user.id ? "text-purple-200" : "text-gray-500"
+                            className={`max-w-[70%] rounded-lg p-3 ${
+                              message.sender_id === user.id ? "bg-purple-600 text-white" : "bg-gray-100 text-gray-800"
                             }`}
                           >
-                            {new Date(message.created_at).toLocaleTimeString([], {
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            })}
+                            <p>{message.content}</p>
+                            <div
+                              className={`text-xs mt-1 ${
+                                message.sender_id === user.id ? "text-purple-200" : "text-gray-500"
+                              }`}
+                            >
+                              {new Date(message.created_at).toLocaleTimeString([], {
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })}
+                            </div>
                           </div>
                         </div>
+                      ))
+                    ) : (
+                      <div className="text-center py-8 text-gray-500">
+                        <p>No messages yet. Send your first message!</p>
                       </div>
-                    ))}
+                    )}
                     <div ref={messagesEndRef} />
                   </div>
                 </CardContent>
