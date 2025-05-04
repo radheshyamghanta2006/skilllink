@@ -30,64 +30,81 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
+    // Use proper cookie handling to fix the cookie issue
     const cookieStore = cookies()
     const supabase = createRouteHandlerClient({ cookies: () => cookieStore })
     
     // Get the current user
-    const { data: { user }, error: userError } = await supabase.auth.getUser()
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession()
     
-    if (userError || !user) {
+    if (sessionError || !session) {
+      console.error("Authentication error:", sessionError || "No session found")
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+    
+    const user = session.user
+    if (!user) {
+      return NextResponse.json({ error: "User not found" }, { status: 401 })
     }
     
     // Parse the request body
     const body = await request.json()
-    const { name, category, description, intent, duration = 60 } = body
+    const { name, category, description, intent } = body
     
     if (!name || !category) {
       return NextResponse.json({ error: "Name and category are required" }, { status: 400 })
     }
     
-    // Set is_active based on intent (provider or seeker)
-    const is_active = intent === "provider"
+    // Insert the skill into the database with the actual column names
+    const skillData = {
+      user_id: user.id,
+      skill_name: name, // Use skill_name instead of name to match DB schema
+      category,
+      intent: intent || 'provider', // Use intent instead of is_active
+      description: description || "",
+    }
     
-    // Insert the skill into the database
+    console.log("Inserting skill with data:", skillData)
+    
     const { data, error } = await supabase
       .from('skills')
-      .insert([{
-        user_id: user.id,
-        name,
-        description: description || "",
-        category,
-        provider_id: user.id,
-        duration,
-        is_active,
-        price: is_active ? 0 : null // Set price for provider skills only
-      }])
+      .insert([skillData])
       .select()
     
     if (error) {
       console.error("Error creating skill:", error)
-      return NextResponse.json({ error: "Failed to create skill" }, { status: 400 })
+      return NextResponse.json({ 
+        error: "Failed to create skill", 
+        details: error 
+      }, { status: 400 })
     }
     
     return NextResponse.json({ skill: data[0] })
   } catch (error) {
     console.error("Server error:", error)
-    return NextResponse.json({ error: "Failed to process request" }, { status: 500 })
+    return NextResponse.json({ 
+      error: "Failed to process request",
+      details: error
+    }, { status: 500 })
   }
 }
 
 export async function DELETE(request: Request) {
   try {
+    // Use proper cookie handling to fix the cookie issue
     const cookieStore = cookies()
     const supabase = createRouteHandlerClient({ cookies: () => cookieStore })
     
-    // Get the current user
-    const { data: { user }, error: userError } = await supabase.auth.getUser()
+    // Get the current user with proper session handling
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession()
     
-    if (userError || !user) {
+    if (sessionError || !session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+    
+    const user = session.user
+    if (!user) {
+      return NextResponse.json({ error: "User not found" }, { status: 401 })
     }
     
     const { searchParams } = new URL(request.url)
