@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { motion } from "framer-motion"
 import { Navbar } from "@/components/navbar"
 import { Footer } from "@/components/footer"
@@ -15,9 +15,13 @@ import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 import { useToast } from "@/components/ui/use-toast"
 
 export default function DashboardPage() {
+  const searchParams = useSearchParams()
+  const tabParam = searchParams.get('tab')
+  const validTabs = ['bookings', 'availability', 'profile', 'skills']
+  
   const [user, setUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState("bookings")
+  const [activeTab, setActiveTab] = useState(validTabs.includes(tabParam as string) ? tabParam as string : "bookings")
   const router = useRouter()
   const { toast } = useToast()
   const supabase = createClientComponentClient()
@@ -68,6 +72,12 @@ export default function DashboardPage() {
   useEffect(() => {
     fetchUserData()
   }, [fetchUserData])
+  
+  // Update URL when tab changes
+  const handleTabChange = (value: string) => {
+    setActiveTab(value)
+    router.push(`/dashboard?tab=${value}`, { scroll: false })
+  }
 
   // Function to handle profile updates
   const handleProfileUpdate = useCallback(() => {
@@ -92,11 +102,11 @@ export default function DashboardPage() {
       <Navbar />
       <main className="flex-grow container mx-auto px-4 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-          <DashboardSidebar user={user} activeTab={activeTab} setActiveTab={setActiveTab} />
+          <DashboardSidebar user={user} activeTab={activeTab} setActiveTab={handleTabChange} />
 
           <div className="lg:col-span-3">
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-              <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+              <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
                 <TabsList className="grid grid-cols-4 mb-8">
                   <TabsTrigger value="bookings">Bookings</TabsTrigger>
                   <TabsTrigger value="availability">Availability</TabsTrigger>
