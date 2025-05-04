@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { motion } from "framer-motion"
 import { Navbar } from "@/components/navbar"
@@ -22,36 +22,58 @@ export default function DashboardPage() {
   const { toast } = useToast()
   const supabase = createClientComponentClient()
 
-  useEffect(() => {
-    const checkUser = async () => {
+  // Function to fetch user data
+  const fetchUserData = useCallback(async () => {
+    try {
+      // First check if we have a valid session
       const {
         data: { session },
+        error: sessionError
       } = await supabase.auth.getSession()
 
-      if (!session) {
+      // If there's a session error or no session, redirect to login
+      if (sessionError || !session) {
+        console.log("No valid session found, redirecting to login")
         router.push("/login")
         return
       }
 
-      try {
-        const { data, error } = await supabase.from("users").select("*").eq("id", session.user.id).single()
+      // Get user data from the database
+      const { data, error } = await supabase
+        .from("users")
+        .select("*")
+        .eq("id", session.user.id)
+        .single()
 
-        if (error) throw error
-
-        setUser(data)
-      } catch (error: any) {
-        toast({
-          title: "Error",
-          description: "Failed to load user profile.",
-          variant: "destructive",
-        })
-      } finally {
-        setLoading(false)
+      if (error) {
+        console.error("Error fetching user data:", error)
+        throw error
       }
-    }
 
-    checkUser()
-  }, [])
+      // Update user state with the retrieved data
+      setUser(data)
+    } catch (error: any) {
+      console.error("Dashboard error:", error)
+      toast({
+        title: "Error",
+        description: "Failed to load user profile.",
+        variant: "destructive",
+      })
+    } finally {
+      setLoading(false)
+    }
+  }, [supabase, router, toast])
+
+  // Load user data on initial page load
+  useEffect(() => {
+    fetchUserData()
+  }, [fetchUserData])
+
+  // Function to handle profile updates
+  const handleProfileUpdate = useCallback(() => {
+    console.log("Dashboard: handleProfileUpdate called - refreshing user data");
+    fetchUserData();
+  }, [fetchUserData]);
 
   if (loading) {
     return (
@@ -91,7 +113,7 @@ export default function DashboardPage() {
                 </TabsContent>
 
                 <TabsContent value="profile">
-                  <ProfileSection user={user} />
+                  <ProfileSection user={user} onProfileUpdate={handleProfileUpdate} />
                 </TabsContent>
 
                 <TabsContent value="skills">

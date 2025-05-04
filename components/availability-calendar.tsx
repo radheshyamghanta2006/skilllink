@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { motion } from "framer-motion"
 import { Calendar } from "@/components/ui/calendar"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -19,54 +19,113 @@ type AvailabilityCalendarProps = {
 export function AvailabilityCalendar({ user }: AvailabilityCalendarProps) {
   const [date, setDate] = useState<Date | undefined>(new Date())
   const [slots, setSlots] = useState<any[]>([])
+  const [allSlots, setAllSlots] = useState<any[]>([])
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [activeTab, setActiveTab] = useState("calendar")
+  const [isLoading, setIsLoading] = useState(false)
   const { toast } = useToast()
   const supabase = createClientComponentClient()
 
-  // Generate dummy slots for the selected date
-  const generateSlotsForDate = (selectedDate: Date) => {
+  // Fetch all availability slots for the user
+  useEffect(() => {
+    if (user && user.id) {
+      fetchAllSlots()
+    }
+  }, [user])
+
+  // Fetch slots for the selected date when date changes
+  useEffect(() => {
+    if (date) {
+      fetchSlotsForDate(date)
+    }
+  }, [date, allSlots])
+
+  const fetchAllSlots = async () => {
+    setIsLoading(true)
+    try {
+      const { data, error } = await supabase
+        .from('availability_slots')
+        .select('*')
+        .eq('provider_id', user.id)
+        .order('date', { ascending: true })
+        .order('start_time', { ascending: true })
+
+      if (error) throw error
+      
+      setAllSlots(data || [])
+    } catch (error) {
+      console.error("Error fetching availability slots:", error)
+      toast({
+        title: "Error",
+        description: "Failed to load availability slots.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const fetchSlotsForDate = async (selectedDate: Date) => {
+    if (!selectedDate) return
+    
     const formattedDate = selectedDate.toISOString().split("T")[0]
+    
+    // Filter slots from allSlots that match the selected date
+    if (allSlots.length > 0) {
+      const filteredSlots = allSlots.filter(slot => slot.date === formattedDate)
+      setSlots(filteredSlots)
+    } else {
+      // If allSlots isn't loaded yet, fetch directly from database
+      try {
+        const { data, error } = await supabase
+          .from('availability_slots')
+          .select('*')
+          .eq('provider_id', user.id)
+          .eq('date', formattedDate)
+          .order('start_time', { ascending: true })
 
-    // Generate 5 random slots for the selected date
-    return Array.from({ length: 5 }, (_, i) => {
-      const startHour = 9 + i * 2
-      const endHour = startHour + 1
-
-      return {
-        id: `slot-${formattedDate}-${i}`,
-        date: formattedDate,
-        start_time: `${startHour}:00:00`,
-        end_time: `${endHour}:00:00`,
-        is_available: Math.random() > 0.3, // 70% chance of being available
+        if (error) throw error
+        
+        setSlots(data || [])
+      } catch (error) {
+        console.error("Error fetching slots for date:", error)
       }
-    })
+    }
   }
 
   const handleDateSelect = (selectedDate: Date | undefined) => {
     if (!selectedDate) return
-
     setDate(selectedDate)
-    setSlots(generateSlotsForDate(selectedDate))
   }
 
   const handleAddSlot = async (newSlot: any) => {
     try {
-      // In a real app, this would add to the database
-      setSlots([
-        ...slots,
-        {
-          id: `slot-new-${Date.now()}`,
-          ...newSlot,
-          is_available: true,
-        },
-      ])
+      const slotData = {
+        provider_id: user.id,
+        date: newSlot.date,
+        start_time: newSlot.start_time,
+        end_time: newSlot.end_time,
+        is_available: true
+      }
+      
+      const { data, error } = await supabase
+        .from('availability_slots')
+        .insert([slotData])
+        .select()
 
-      toast({
-        title: "Time slot added",
-        description: "Your availability has been updated.",
-      })
-
+      if (error) throw error
+      
+      // Update both states
+      if (data && data.length > 0) {
+        setSlots([...slots, data[0]])
+        setAllSlots([...allSlots, data[0]])
+        
+        toast({
+          title: "Time slot added",
+          description: "Your availability has been updated.",
+        })
+      }
+      
       setIsModalOpen(false)
     } catch (error) {
       console.error("Error adding time slot:", error)
@@ -80,8 +139,22 @@ export function AvailabilityCalendar({ user }: AvailabilityCalendarProps) {
 
   const handleToggleAvailability = async (slotId: string) => {
     try {
-      // In a real app, this would update the database
-      setSlots(slots.map((slot) => (slot.id === slotId ? { ...slot, is_available: !slot.is_available } : slot)))
+      // Find the slot
+      const slot = slots.find(s => s.id === slotId)
+      if (!slot) return
+      
+      // Toggle the is_available flag
+      const { error } = await supabase
+        .from('availability_slots')
+        .update({ is_available: !slot.is_available })
+        .eq('id', slotId)
+
+      if (error) throw error
+      
+      // Update both local states
+      const updatedSlot = { ...slot, is_available: !slot.is_available }
+      setSlots(slots.map(s => s.id === slotId ? updatedSlot : s))
+      setAllSlots(allSlots.map(s => s.id === slotId ? updatedSlot : s))
 
       toast({
         title: "Availability updated",
@@ -99,8 +172,16 @@ export function AvailabilityCalendar({ user }: AvailabilityCalendarProps) {
 
   const handleDeleteSlot = async (slotId: string) => {
     try {
-      // In a real app, this would delete from the database
-      setSlots(slots.filter((slot) => slot.id !== slotId))
+      const { error } = await supabase
+        .from('availability_slots')
+        .delete()
+        .eq('id', slotId)
+
+      if (error) throw error
+      
+      // Update both local states
+      setSlots(slots.filter(slot => slot.id !== slotId))
+      setAllSlots(allSlots.filter(slot => slot.id !== slotId))
 
       toast({
         title: "Time slot deleted",
@@ -118,9 +199,26 @@ export function AvailabilityCalendar({ user }: AvailabilityCalendarProps) {
 
   // Function to determine if a date has available slots
   const hasAvailableSlots = (day: Date) => {
-    // For demo purposes, we'll just return random values
-    return Math.random() > 0.7
+    const formattedDate = day.toISOString().split("T")[0]
+    return allSlots.some(slot => slot.date === formattedDate && slot.is_available)
   }
+
+  // Group slots by date for list view
+  const groupedSlots = allSlots.reduce((groups, slot) => {
+    const date = slot.date
+    if (!groups[date]) {
+      groups[date] = []
+    }
+    if (slot.is_available) {
+      groups[date].push(slot)
+    }
+    return groups
+  }, {})
+
+  // Sort dates for display
+  const sortedDates = Object.keys(groupedSlots).sort((a, b) => 
+    new Date(a).getTime() - new Date(b).getTime()
+  )
 
   return (
     <div>
@@ -148,18 +246,24 @@ export function AvailabilityCalendar({ user }: AvailabilityCalendarProps) {
                 <CardTitle>Select Date</CardTitle>
               </CardHeader>
               <CardContent>
-                <Calendar
-                  mode="single"
-                  selected={date}
-                  onSelect={handleDateSelect}
-                  className="rounded-md border"
-                  modifiers={{
-                    hasSlots: (day) => hasAvailableSlots(day),
-                  }}
-                  modifiersStyles={{
-                    hasSlots: { backgroundColor: "rgba(147, 51, 234, 0.1)" },
-                  }}
-                />
+                {isLoading ? (
+                  <div className="flex justify-center items-center h-60">
+                    <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-purple-600"></div>
+                  </div>
+                ) : (
+                  <Calendar
+                    mode="single"
+                    selected={date}
+                    onSelect={handleDateSelect}
+                    className="rounded-md border"
+                    modifiers={{
+                      hasSlots: (day) => hasAvailableSlots(day),
+                    }}
+                    modifiersStyles={{
+                      hasSlots: { backgroundColor: "rgba(147, 51, 234, 0.1)" },
+                    }}
+                  />
+                )}
               </CardContent>
             </Card>
 
@@ -172,7 +276,11 @@ export function AvailabilityCalendar({ user }: AvailabilityCalendarProps) {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                {slots.length > 0 ? (
+                {isLoading ? (
+                  <div className="flex justify-center items-center h-40">
+                    <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-purple-600"></div>
+                  </div>
+                ) : slots.length > 0 ? (
                   <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-3">
                     {slots.map((slot) => (
                       <div key={slot.id} className="flex items-center justify-between p-3 border rounded-md">
@@ -214,7 +322,12 @@ export function AvailabilityCalendar({ user }: AvailabilityCalendarProps) {
                   </div>
                 )}
 
-                <Button onClick={() => setIsModalOpen(true)} variant="outline" className="w-full mt-4">
+                <Button 
+                  onClick={() => setIsModalOpen(true)} 
+                  variant="outline" 
+                  className="w-full mt-4"
+                  disabled={!date}
+                >
                   <Plus className="mr-2 h-4 w-4" />
                   Add Time Slot for This Date
                 </Button>
@@ -229,51 +342,61 @@ export function AvailabilityCalendar({ user }: AvailabilityCalendarProps) {
               <CardTitle>All Available Time Slots</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-6">
-                {/* Group slots by date */}
-                {Array.from({ length: 5 }, (_, i) => {
-                  const date = new Date()
-                  date.setDate(date.getDate() + i)
-                  return {
-                    date: date.toISOString().split("T")[0],
-                    slots: generateSlotsForDate(date).filter((slot) => slot.is_available),
-                  }
-                }).map((day) => (
-                  <div key={day.date} className="border-b pb-4 last:border-b-0">
-                    <h3 className="font-medium mb-3">
-                      {new Date(day.date).toLocaleDateString("en-US", {
-                        weekday: "long",
-                        month: "long",
-                        day: "numeric",
-                      })}
-                    </h3>
-                    {day.slots.length > 0 ? (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
-                        {day.slots.map((slot) => (
-                          <div key={slot.id} className="flex items-center justify-between p-2 border rounded-md">
-                            <div className="flex items-center">
-                              <Clock className="h-4 w-4 mr-2 text-gray-500" />
-                              <span>
-                                {slot.start_time.substring(0, 5)} - {slot.end_time.substring(0, 5)}
-                              </span>
+              {isLoading ? (
+                <div className="flex justify-center items-center h-40">
+                  <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-purple-600"></div>
+                </div>
+              ) : sortedDates.length > 0 ? (
+                <div className="space-y-6">
+                  {sortedDates.map((dateStr) => (
+                    <div key={dateStr} className="border-b pb-4 last:border-b-0">
+                      <h3 className="font-medium mb-3">
+                        {new Date(dateStr).toLocaleDateString("en-US", {
+                          weekday: "long",
+                          month: "long",
+                          day: "numeric",
+                        })}
+                      </h3>
+                      {groupedSlots[dateStr].length > 0 ? (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+                          {groupedSlots[dateStr].map((slot) => (
+                            <div key={slot.id} className="flex items-center justify-between p-2 border rounded-md">
+                              <div className="flex items-center">
+                                <Clock className="h-4 w-4 mr-2 text-gray-500" />
+                                <span>
+                                  {slot.start_time.substring(0, 5)} - {slot.end_time.substring(0, 5)}
+                                </span>
+                              </div>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => handleDeleteSlot(slot.id)}
+                                className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
                             </div>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => handleDeleteSlot(slot.id)}
-                              className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <p className="text-sm text-gray-500">No available slots on this day.</p>
-                    )}
-                  </div>
-                ))}
-              </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-sm text-gray-500">No available slots on this day.</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <p className="text-gray-500 mb-4">You haven't added any availability slots yet.</p>
+                  <Button 
+                    onClick={() => setIsModalOpen(true)} 
+                    variant="outline" 
+                    className="border-purple-300 text-purple-700 hover:bg-purple-50"
+                  >
+                    <Plus className="mr-2 h-4 w-4" />
+                    Add Your First Time Slot
+                  </Button>
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>

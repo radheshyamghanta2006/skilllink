@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useRef, useEffect } from "react"
 import { motion } from "framer-motion"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -10,15 +10,16 @@ import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
+import { createBrowserSupabaseClient } from "@/lib/supabase"
 import { useToast } from "@/components/ui/use-toast"
-import { MapPin, Mail, Phone, Upload } from "lucide-react"
+import { MapPin, Mail, Phone, Upload, Loader2 } from "lucide-react"
 
 type ProfileSectionProps = {
   user: any
+  onProfileUpdate?: () => void
 }
 
-export function ProfileSection({ user }: ProfileSectionProps) {
+export function ProfileSection({ user, onProfileUpdate }: ProfileSectionProps) {
   const [formData, setFormData] = useState({
     name: user?.name || "",
     email: user?.email || "",
@@ -29,8 +30,24 @@ export function ProfileSection({ user }: ProfileSectionProps) {
   })
   const [isEditing, setIsEditing] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const [isUploading, setIsUploading] = useState(false)
   const { toast } = useToast()
-  const supabase = createClientComponentClient()
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const supabase = createBrowserSupabaseClient()
+
+  // Update form data when user prop changes
+  useEffect(() => {
+    if (user) {
+      setFormData({
+        name: user.name || "",
+        email: user.email || "",
+        phone: user.phone || "",
+        location: user.location || "",
+        bio: user.bio || "",
+        profile_image: user.profile_image || "",
+      })
+    }
+  }, [user])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
@@ -38,39 +55,165 @@ export function ProfileSection({ user }: ProfileSectionProps) {
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setIsLoading(true)
+    e.preventDefault();
+    setIsLoading(true);
 
     try {
-      // In a real app, this would update the database
-      // For demo purposes, we'll just simulate a delay
-      await new Promise((resolve) => setTimeout(resolve, 1000))
+      // Use Supabase client directly - more reliable than API route
+      const { data, error } = await supabase
+        .from("users")
+        .update({
+          name: formData.name,
+          phone: formData.phone,
+          location: formData.location,
+          bio: formData.bio,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", user.id)
+        .select("*");
+
+      if (error) {
+        console.error("Error updating profile:", error);
+        throw new Error(error.message || "Failed to update profile");
+      }
+
+      if (data && data.length > 0) {
+        // Update local form data with the response data
+        setFormData(prev => ({
+          ...prev,
+          ...data[0],
+        }));
+      }
 
       toast({
         title: "Profile updated",
         description: "Your profile has been successfully updated.",
-      })
+      });
 
-      setIsEditing(false)
-    } catch (error) {
-      console.error("Error updating profile:", error)
+      // Notify parent component that profile was updated
+      if (onProfileUpdate) {
+        onProfileUpdate();
+      }
+
+      setIsEditing(false);
+    } catch (error: any) {
+      console.error("Error updating profile:", error);
       toast({
         title: "Error",
-        description: "Failed to update profile.",
+        description: error.message || "Failed to update profile.",
         variant: "destructive",
-      })
+      });
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
+
+  const handleImageClick = () => {
+    if (isEditing && fileInputRef.current) {
+      fileInputRef.current.click();
+    }
+  };
+
+  const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploading(true);
+
+    try {
+      // Create a storage bucket reference
+      const fileExt = file.name.split(".").pop();
+      const fileName = `${user.id}-${Date.now()}.${fileExt}`;
+      
+      // Call the server-side API to ensure the bucket exists
+      const bucketResponse = await fetch('/api/storage/bucket', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ bucketName: 'profile-images' }),
+      });
+      
+      if (!bucketResponse.ok) {
+        const errorData = await bucketResponse.json();
+        console.error("Error creating bucket:", errorData);
+        throw new Error(errorData.error || "Failed to prepare storage bucket");
+      }
+      
+      // Upload image to Supabase Storage
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from("profile-images")
+        .upload(fileName, file, {
+          cacheControl: "3600",
+          upsert: true,
+        });
+
+      if (uploadError) {
+        console.error("Upload error:", uploadError);
+        throw new Error("Failed to upload image: " + uploadError.message);
+      }
+
+      // Get public URL for the uploaded image
+      const { data: publicUrlData } = supabase.storage
+        .from("profile-images")
+        .getPublicUrl(fileName);
+
+      const imageUrl = publicUrlData.publicUrl;
+      
+      // Update profile with new image URL
+      const { data: updateData, error: updateError } = await supabase
+        .from("users")
+        .update({
+          profile_image: imageUrl,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", user.id)
+        .select();
+
+      if (updateError) {
+        console.error("Error updating profile with image:", updateError);
+        throw new Error("Failed to update profile with new image");
+      }
+
+      // Update local form data
+      setFormData(prev => ({
+        ...prev,
+        profile_image: imageUrl,
+      }));
+
+      toast({
+        title: "Image uploaded",
+        description: "Your profile picture has been updated.",
+      });
+
+      // Notify parent component that profile was updated
+      if (onProfileUpdate) {
+        onProfileUpdate();
+      }
+    } catch (error: any) {
+      console.error("Error uploading image:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to upload image.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsUploading(false);
+      // Clear the file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    }
+  };
 
   const getInitials = (name: string) => {
+    if (!name) return "";
     return name
       .split(" ")
       .map((n) => n[0])
       .join("")
-      .toUpperCase()
-  }
+      .toUpperCase();
+  };
 
   return (
     <div>
@@ -98,17 +241,28 @@ export function ProfileSection({ user }: ProfileSectionProps) {
           </CardHeader>
           <CardContent className="flex flex-col items-center">
             <div className="relative mb-4">
-              <Avatar className="h-32 w-32">
-                <AvatarImage src={formData.profile_image || "/placeholder.svg"} alt={formData.name} />
+              <Avatar className="h-32 w-32 cursor-pointer" onClick={handleImageClick}>
+                <AvatarImage src={formData.profile_image || "/placeholder-user.jpg"} alt={formData.name} />
                 <AvatarFallback className="text-2xl">{getInitials(formData.name)}</AvatarFallback>
               </Avatar>
               {isEditing && (
-                <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 rounded-full">
-                  <Button variant="ghost" size="sm" className="text-white">
-                    <Upload className="h-5 w-5" />
-                  </Button>
+                <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 rounded-full cursor-pointer" onClick={handleImageClick}>
+                  {isUploading ? (
+                    <Loader2 className="h-6 w-6 text-white animate-spin" />
+                  ) : (
+                    <Upload className="h-5 w-5 text-white" />
+                  )}
                 </div>
               )}
+              <input
+                type="file"
+                ref={fileInputRef}
+                className="hidden"
+                accept="image/*"
+                onChange={handleImageChange}
+                disabled={isUploading}
+                aria-label="Upload profile image"
+              />
             </div>
 
             <div className="text-center">
@@ -197,7 +351,14 @@ export function ProfileSection({ user }: ProfileSectionProps) {
                     className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
                     disabled={isLoading}
                   >
-                    {isLoading ? "Saving..." : "Save Changes"}
+                    {isLoading ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Saving...
+                      </>
+                    ) : (
+                      "Save Changes"
+                    )}
                   </Button>
                 </div>
               </motion.form>

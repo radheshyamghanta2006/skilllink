@@ -35,10 +35,44 @@ export function BookingsList({ user }: BookingsListProps) {
     setLoading(true)
 
     try {
-      // In a real app, this would fetch from the database
-      // For demo purposes, we'll create dummy data
-      const dummyBookings = generateDummyBookings(user)
-      setBookings(dummyBookings)
+      // Determine which bookings to fetch based on user role
+      let query = supabase
+        .from('bookings')
+        .select(`
+          *,
+          provider:provider_id(id, name, profile_image),
+          seeker:seeker_id(id, name, profile_image)
+        `)
+      
+      // Filter based on user role
+      if (user.role === 'provider' || user.current_mode === 'provider') {
+        query = query.eq('provider_id', user.id)
+      } else if (user.role === 'seeker' || user.current_mode === 'seeker') {
+        query = query.eq('seeker_id', user.id)
+      } else if (user.role === 'both') {
+        query = query.or(`provider_id.eq.${user.id},seeker_id.eq.${user.id}`)
+      }
+      
+      // Execute the query
+      const { data, error } = await query.order('date', { ascending: false })
+
+      if (error) throw error
+      
+      // Check if the booking has reviews
+      const enhancedBookings = await Promise.all((data || []).map(async (booking) => {
+        const { data: reviewData } = await supabase
+          .from('reviews')
+          .select('*')
+          .eq('booking_id', booking.id)
+          .limit(1)
+        
+        return {
+          ...booking,
+          has_review: reviewData && reviewData.length > 0
+        }
+      }))
+      
+      setBookings(enhancedBookings)
     } catch (error) {
       console.error("Error fetching bookings:", error)
       toast({
@@ -51,49 +85,19 @@ export function BookingsList({ user }: BookingsListProps) {
     }
   }
 
-  const generateDummyBookings = (user: any) => {
-    const now = new Date()
-    const statuses = ["pending", "confirmed", "completed", "cancelled"]
-    const paymentStatuses = ["pending", "paid", "refunded"]
-
-    // Generate 10 random bookings
-    return Array.from({ length: 10 }, (_, i) => {
-      const date = new Date()
-      date.setDate(now.getDate() + (i % 5 === 0 ? -5 : i))
-
-      const status = statuses[Math.floor(Math.random() * statuses.length)]
-      const paymentStatus = paymentStatuses[Math.floor(Math.random() * paymentStatuses.length)]
-
-      return {
-        id: `booking-${i}`,
-        date: date.toISOString().split("T")[0],
-        start_time: `${10 + (i % 8)}:00:00`,
-        end_time: `${11 + (i % 8)}:00:00`,
-        status,
-        payment_status: paymentStatus,
-        payment_amount: Math.floor(Math.random() * 50) + 20,
-        skill_name: ["Piano Lessons", "Yoga Class", "Web Development", "Cooking Class", "Language Exchange"][i % 5],
-        location: "Online",
-        notes: "Looking forward to our session!",
-        provider: {
-          id: `provider-${i}`,
-          name: ["Alex Johnson", "Maria Garcia", "David Kim", "Sarah Patel", "James Wilson"][i % 5],
-          profile_image: "/placeholder.svg?height=40&width=40",
-        },
-        seeker: {
-          id: `seeker-${i}`,
-          name: ["John Doe", "Jane Smith", "Robert Brown", "Emily Davis", "Michael Lee"][i % 5],
-          profile_image: "/placeholder.svg?height=40&width=40",
-        },
-        has_review: status === "completed" && Math.random() > 0.5,
-      }
-    })
-  }
-
   const handleUpdateStatus = async (bookingId: string, newStatus: string) => {
     try {
-      // In a real app, this would update the database
-      setBookings(bookings.map((booking) => (booking.id === bookingId ? { ...booking, status: newStatus } : booking)))
+      const { error } = await supabase
+        .from('bookings')
+        .update({ status: newStatus })
+        .eq('id', bookingId)
+      
+      if (error) throw error
+      
+      // Update the local state
+      setBookings(bookings.map((booking) => 
+        booking.id === bookingId ? { ...booking, status: newStatus } : booking
+      ))
 
       toast({
         title: "Status updated",
@@ -111,9 +115,18 @@ export function BookingsList({ user }: BookingsListProps) {
 
   const handleUpdatePayment = async (bookingId: string, newStatus: string) => {
     try {
-      // In a real app, this would update the database
+      const { error } = await supabase
+        .from('bookings')
+        .update({ payment_status: newStatus })
+        .eq('id', bookingId)
+      
+      if (error) throw error
+      
+      // Update the local state
       setBookings(
-        bookings.map((booking) => (booking.id === bookingId ? { ...booking, payment_status: newStatus } : booking)),
+        bookings.map((booking) => 
+          booking.id === bookingId ? { ...booking, payment_status: newStatus } : booking
+        ),
       )
 
       toast({
@@ -137,8 +150,25 @@ export function BookingsList({ user }: BookingsListProps) {
 
   const handleReviewSubmit = async (bookingId: string, rating: number, comment: string) => {
     try {
-      // In a real app, this would create a review in the database
-      setBookings(bookings.map((booking) => (booking.id === bookingId ? { ...booking, has_review: true } : booking)))
+      // Create the review in the database
+      const { error } = await supabase.from('reviews').insert([{
+        booking_id: bookingId,
+        rating: rating,
+        comment: comment,
+        reviewer_id: user.id,
+        reviewee_id: user.role === 'provider' ? 
+          bookings.find(b => b.id === bookingId)?.seeker_id : 
+          bookings.find(b => b.id === bookingId)?.provider_id,
+        provider_id: bookings.find(b => b.id === bookingId)?.provider_id,
+        seeker_id: bookings.find(b => b.id === bookingId)?.seeker_id
+      }])
+      
+      if (error) throw error
+      
+      // Update the local state
+      setBookings(bookings.map((booking) => 
+        booking.id === bookingId ? { ...booking, has_review: true } : booking
+      ))
 
       toast({
         title: "Review submitted",
@@ -197,6 +227,7 @@ export function BookingsList({ user }: BookingsListProps) {
   }
 
   const getInitials = (name: string) => {
+    if (!name) return ""
     return name
       .split(" ")
       .map((n) => n[0])
@@ -274,22 +305,22 @@ export function BookingsList({ user }: BookingsListProps) {
                           <Avatar className="h-12 w-12">
                             <AvatarImage
                               src={
-                                user.role === "provider" ? booking.seeker.profile_image : booking.provider.profile_image
+                                user.id === booking.provider_id ? booking.seeker.profile_image : booking.provider.profile_image
                               }
-                              alt={user.role === "provider" ? booking.seeker.name : booking.provider.name}
+                              alt={user.id === booking.provider_id ? booking.seeker.name : booking.provider.name}
                             />
                             <AvatarFallback>
-                              {getInitials(user.role === "provider" ? booking.seeker.name : booking.provider.name)}
+                              {getInitials(user.id === booking.provider_id ? booking.seeker.name : booking.provider.name)}
                             </AvatarFallback>
                           </Avatar>
 
                           <div>
                             <div className="flex flex-wrap items-center gap-2 mb-1">
                               <h3 className="font-semibold">
-                                {user.role === "provider" ? booking.seeker.name : booking.provider.name}
+                                {user.id === booking.provider_id ? booking.seeker.name : booking.provider.name}
                               </h3>
                               <span className="text-gray-500">•</span>
-                              <span className="text-sm text-gray-600">{booking.skill_name}</span>
+                              <span className="text-sm text-gray-600">{booking.service_name}</span>
                             </div>
 
                             <div className="flex flex-wrap gap-x-4 gap-y-2 text-sm text-gray-600">
@@ -303,14 +334,14 @@ export function BookingsList({ user }: BookingsListProps) {
                               </div>
                               <div className="flex items-center">
                                 <Clock className="h-4 w-4 mr-1" />
-                                {booking.start_time.substring(0, 5)} - {booking.end_time.substring(0, 5)}
+                                {booking.start_time?.substring(0, 5)} - {booking.end_time?.substring(0, 5)}
                               </div>
                               <div className="flex items-center">
                                 <MapPin className="h-4 w-4 mr-1" />
-                                {booking.location}
+                                {booking.location || "Online"}
                               </div>
                               <div className="flex items-center">
-                                <DollarSign className="h-4 w-4 mr-1" />${booking.payment_amount}
+                                <DollarSign className="h-4 w-4 mr-1" />${booking.payment_amount || 0}
                               </div>
                             </div>
                           </div>
@@ -324,7 +355,7 @@ export function BookingsList({ user }: BookingsListProps) {
 
                       <div className="mt-4 pt-4 border-t flex flex-wrap justify-between items-center gap-2">
                         <div className="flex flex-wrap gap-2">
-                          {booking.status === "pending" && user.role === "provider" && (
+                          {booking.status === "pending" && user.id === booking.provider_id && (
                             <>
                               <Button
                                 size="sm"
@@ -366,7 +397,7 @@ export function BookingsList({ user }: BookingsListProps) {
 
                           {booking.status === "confirmed" &&
                             booking.payment_status === "pending" &&
-                            user.role === "provider" && (
+                            user.id === booking.provider_id && (
                               <Button
                                 size="sm"
                                 variant="outline"
