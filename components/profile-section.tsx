@@ -147,7 +147,7 @@ export function ProfileSection({ user, onProfileUpdate }: ProfileSectionProps) {
         .update({
           profile_image: data.fileUrl,
           updated_at: new Date().toISOString(),
-        })
+        } as any)
         .eq("id", user.id)
         .select();
 

@@ -59,10 +59,12 @@ export function SkillsSection({ user }: SkillsSectionProps) {
     setLoading(true)
     try {
       console.log("Fetching skills for user:", userId)
+      
+      // More detailed error logging
       const { data, error } = await supabase
         .from('skills')
         .select('*')
-        .eq('provider_id', userId)
+        .eq('user_id', userId) // Changed from provider_id to user_id
         .order('created_at', { ascending: false })
 
       if (error) {
@@ -86,6 +88,7 @@ export function SkillsSection({ user }: SkillsSectionProps) {
 
   const handleAddSkill = async (e: React.FormEvent) => {
     e.preventDefault()
+    console.log("Form submitted, adding skill:", newSkill)
 
     if (!newSkill.skill_name || !newSkill.category || !user?.id) {
       toast({
@@ -99,46 +102,67 @@ export function SkillsSection({ user }: SkillsSectionProps) {
     try {
       setLoading(true)
       
-      // Use the API endpoint instead of direct Supabase client
-      const response = await fetch('/api/skills', {
+      // Create the request body with the correct field names as expected by the API
+      const requestBody = {
+        name: newSkill.skill_name,
+        category: newSkill.category,
+        description: newSkill.description,
+        intent: newSkill.intent // Intent is used directly in the database
+      }
+      
+      console.log("Sending request to API with body:", requestBody)
+      
+      // Make an absolute URL to ensure the correct endpoint is called
+      const apiUrl = new URL('/api/skills', window.location.origin).href
+      console.log("API URL:", apiUrl)
+      
+      // Use the API endpoint with absolute URL
+      const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          name: newSkill.skill_name,
-          category: newSkill.category,
-          description: newSkill.description,
-          intent: newSkill.intent,
-          duration: 60
-        }),
+        body: JSON.stringify(requestBody),
+        // Important: ensure credentials are included for auth
+        credentials: 'include'
       })
       
-      const result = await response.json()
+      console.log("API response status:", response.status)
       
-      if (!response.ok) {
-        throw new Error(result.error || 'Failed to add skill')
+      if (response.ok) {
+        const result = await response.json()
+        console.log("API response data:", result)
+        
+        // Update local state with the new skill
+        if (result.skill) {
+          setSkills([result.skill, ...skills])
+        }
+
+        // Reset form
+        setNewSkill({
+          skill_name: "",
+          category: "",
+          intent: "provider",
+          description: "",
+        })
+
+        setIsAddingSkill(false)
+
+        toast({
+          title: "Skill added",
+          description: "Your skill has been added successfully.",
+        })
+      } else {
+        // Handle HTTP error status
+        let errorMessage = "Failed to add skill";
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.error || errorMessage;
+        } catch (e) {
+          // If JSON parsing fails, use default error message
+        }
+        throw new Error(errorMessage);
       }
-      
-      // Update local state with the new skill
-      if (result.skill) {
-        setSkills([result.skill, ...skills])
-      }
-
-      // Reset form
-      setNewSkill({
-        skill_name: "",
-        category: "",
-        intent: "provider",
-        description: "",
-      })
-
-      setIsAddingSkill(false)
-
-      toast({
-        title: "Skill added",
-        description: "Your skill has been added successfully.",
-      })
     } catch (error: any) {
       console.error("Error adding skill:", error)
       toast({
@@ -153,24 +177,41 @@ export function SkillsSection({ user }: SkillsSectionProps) {
 
   const handleDeleteSkill = async (skillId: string) => {
     try {
-      // Use the API endpoint to delete the skill
-      const response = await fetch(`/api/skills?id=${skillId}`, {
+      // Create absolute URL for the API endpoint
+      const apiUrl = new URL(`/api/skills?id=${skillId}`, window.location.origin).href
+      console.log("Deleting skill with ID:", skillId)
+      console.log("Delete API URL:", apiUrl)
+      
+      // Use the API endpoint to delete the skill with credentials included
+      const response = await fetch(apiUrl, {
         method: 'DELETE',
+        credentials: 'include'
       })
       
-      const result = await response.json()
+      console.log("Delete API response status:", response.status)
       
-      if (!response.ok) {
-        throw new Error(result.error || 'Failed to delete skill')
+      if (response.ok) {
+        const result = await response.json()
+        console.log("Delete API response:", result)
+        
+        // Update local state
+        setSkills(skills.filter((skill) => skill.id !== skillId))
+
+        toast({
+          title: "Skill deleted",
+          description: "Your skill has been deleted successfully.",
+        })
+      } else {
+        // Handle HTTP error status
+        let errorMessage = "Failed to delete skill";
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.error || errorMessage;
+        } catch (e) {
+          // If JSON parsing fails, use default error message
+        }
+        throw new Error(errorMessage);
       }
-
-      // Update local state
-      setSkills(skills.filter((skill) => skill.id !== skillId))
-
-      toast({
-        title: "Skill deleted",
-        description: "Your skill has been deleted successfully.",
-      })
     } catch (error: any) {
       console.error("Error deleting skill:", error)
       toast({
@@ -339,6 +380,13 @@ export function SkillsSection({ user }: SkillsSectionProps) {
                   <Button
                     type="submit"
                     className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+                    onClick={(e) => {
+                      console.log("Add Skill button clicked");
+                      // This is a backup in case the form submit event doesn't fire
+                      if (!e.defaultPrevented) {
+                        handleAddSkill(e as unknown as React.FormEvent);
+                      }
+                    }}
                   >
                     Add Skill
                   </Button>
@@ -360,10 +408,10 @@ export function SkillsSection({ user }: SkillsSectionProps) {
               <CardTitle>Skills You Provide</CardTitle>
             </CardHeader>
             <CardContent>
-              {skills.filter((skill) => skill.is_active).length > 0 ? (
+              {skills.filter((skill) => skill.intent === 'provider').length > 0 ? (
                 <motion.div variants={containerVariants} initial="hidden" animate="visible" className="space-y-4">
                   {skills
-                    .filter((skill) => skill.is_active)
+                    .filter((skill) => skill.intent === 'provider')
                     .map((skill) => (
                       <motion.div
                         key={skill.id}
@@ -374,7 +422,7 @@ export function SkillsSection({ user }: SkillsSectionProps) {
                           <Award className="h-5 w-5 text-blue-600 mt-0.5" />
                           <div>
                             <div className="flex items-center">
-                              <h3 className="font-medium">{skill.name}</h3>
+                              <h3 className="font-medium">{skill.skill_name}</h3>
                               <Badge className="ml-2 bg-blue-100 text-blue-800">{skill.category}</Badge>
                             </div>
                             {skill.description && <p className="text-sm text-gray-500 mt-1">{skill.description}</p>}
@@ -402,10 +450,10 @@ export function SkillsSection({ user }: SkillsSectionProps) {
               <CardTitle>Skills You Want to Learn</CardTitle>
             </CardHeader>
             <CardContent>
-              {skills.filter((skill) => !skill.is_active).length > 0 ? (
+              {skills.filter((skill) => skill.intent === 'seeker').length > 0 ? (
                 <motion.div variants={containerVariants} initial="hidden" animate="visible" className="space-y-4">
                   {skills
-                    .filter((skill) => !skill.is_active)
+                    .filter((skill) => skill.intent === 'seeker')
                     .map((skill) => (
                       <motion.div
                         key={skill.id}
@@ -416,7 +464,7 @@ export function SkillsSection({ user }: SkillsSectionProps) {
                           <Award className="h-5 w-5 text-purple-600 mt-0.5" />
                           <div>
                             <div className="flex items-center">
-                              <h3 className="font-medium">{skill.name}</h3>
+                              <h3 className="font-medium">{skill.skill_name}</h3>
                               <Badge className="ml-2 bg-purple-100 text-purple-800">{skill.category}</Badge>
                             </div>
                             {skill.description && <p className="text-sm text-gray-500 mt-1">{skill.description}</p>}
