@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { motion } from "framer-motion"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -35,22 +35,7 @@ type SkillsSectionProps = {
 }
 
 export function SkillsSection({ user }: SkillsSectionProps) {
-  const [skills, setSkills] = useState<any[]>([
-    {
-      id: "1",
-      skill_name: "Web Development",
-      category: "Technology",
-      intent: "provider",
-      description: "Full-stack web development with React, Node.js, and Next.js",
-    },
-    {
-      id: "2",
-      skill_name: "Piano Lessons",
-      category: "Music",
-      intent: "seeker",
-      description: "Looking for beginner piano lessons",
-    },
-  ])
+  const [skills, setSkills] = useState<any[]>([])
   const [newSkill, setNewSkill] = useState({
     skill_name: "",
     category: "",
@@ -59,13 +44,50 @@ export function SkillsSection({ user }: SkillsSectionProps) {
   })
   const [isAddingSkill, setIsAddingSkill] = useState(false)
   const [skillSwapEnabled, setSkillSwapEnabled] = useState(true)
+  const [loading, setLoading] = useState(true)
   const { toast } = useToast()
   const supabase = createClientComponentClient()
+
+  useEffect(() => {
+    // Fetch user's skills when component mounts
+    if (user?.id) {
+      fetchUserSkills(user.id)
+    }
+  }, [user])
+
+  const fetchUserSkills = async (userId: string) => {
+    setLoading(true)
+    try {
+      console.log("Fetching skills for user:", userId)
+      const { data, error } = await supabase
+        .from('skills')
+        .select('*')
+        .eq('provider_id', userId)
+        .order('created_at', { ascending: false })
+
+      if (error) {
+        console.error("Error fetching skills:", error)
+        throw error
+      }
+
+      console.log("Fetched skills:", data)
+      setSkills(data || [])
+    } catch (error: any) {
+      console.error("Error fetching skills:", error)
+      toast({
+        title: "Error",
+        description: "Failed to load your skills.",
+        variant: "destructive",
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const handleAddSkill = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (!newSkill.skill_name || !newSkill.category) {
+    if (!newSkill.skill_name || !newSkill.category || !user?.id) {
       toast({
         title: "Error",
         description: "Please fill in all required fields.",
@@ -75,11 +97,35 @@ export function SkillsSection({ user }: SkillsSectionProps) {
     }
 
     try {
-      // In a real app, this would add to the database
-      const skillId = `skill-${Date.now()}`
+      setLoading(true)
+      
+      // Use the API endpoint instead of direct Supabase client
+      const response = await fetch('/api/skills', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: newSkill.skill_name,
+          category: newSkill.category,
+          description: newSkill.description,
+          intent: newSkill.intent,
+          duration: 60
+        }),
+      })
+      
+      const result = await response.json()
+      
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to add skill')
+      }
+      
+      // Update local state with the new skill
+      if (result.skill) {
+        setSkills([result.skill, ...skills])
+      }
 
-      setSkills([...skills, { id: skillId, ...newSkill }])
-
+      // Reset form
       setNewSkill({
         skill_name: "",
         category: "",
@@ -93,44 +139,74 @@ export function SkillsSection({ user }: SkillsSectionProps) {
         title: "Skill added",
         description: "Your skill has been added successfully.",
       })
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error adding skill:", error)
       toast({
         title: "Error",
-        description: "Failed to add skill.",
+        description: error.message || "Failed to add skill.",
         variant: "destructive",
       })
+    } finally {
+      setLoading(false)
     }
   }
 
   const handleDeleteSkill = async (skillId: string) => {
     try {
-      // In a real app, this would delete from the database
+      // Use the API endpoint to delete the skill
+      const response = await fetch(`/api/skills?id=${skillId}`, {
+        method: 'DELETE',
+      })
+      
+      const result = await response.json()
+      
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to delete skill')
+      }
+
+      // Update local state
       setSkills(skills.filter((skill) => skill.id !== skillId))
 
       toast({
         title: "Skill deleted",
         description: "Your skill has been deleted successfully.",
       })
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error deleting skill:", error)
       toast({
         title: "Error",
-        description: "Failed to delete skill.",
+        description: error.message || "Failed to delete skill.",
         variant: "destructive",
       })
     }
   }
 
   const handleSkillSwapToggle = async (enabled: boolean) => {
-    setSkillSwapEnabled(enabled)
+    try {
+      // Update user preferences in database
+      const { error } = await supabase
+        .from('users')
+        .update({ open_to_skill_swap: enabled })
+        .eq('id', user.id)
 
-    toast({
-      title: enabled ? "Skill swap enabled" : "Skill swap disabled",
-      description: enabled
-        ? "You are now open to skill swap opportunities."
-        : "You are no longer open to skill swap opportunities.",
-    })
+      if (error) throw error
+      
+      setSkillSwapEnabled(enabled)
+
+      toast({
+        title: enabled ? "Skill swap enabled" : "Skill swap disabled",
+        description: enabled
+          ? "You are now open to skill swap opportunities."
+          : "You are no longer open to skill swap opportunities.",
+      })
+    } catch (error: any) {
+      console.error("Error updating skill swap preference:", error)
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update skill swap preference.",
+        variant: "destructive",
+      })
+    }
   }
 
   const containerVariants = {
@@ -273,91 +349,97 @@ export function SkillsSection({ user }: SkillsSectionProps) {
         </motion.div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Skills You Provide</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {skills.filter((skill) => skill.intent === "provider").length > 0 ? (
-              <motion.div variants={containerVariants} initial="hidden" animate="visible" className="space-y-4">
-                {skills
-                  .filter((skill) => skill.intent === "provider")
-                  .map((skill) => (
-                    <motion.div
-                      key={skill.id}
-                      variants={itemVariants}
-                      className="flex items-start justify-between p-3 border rounded-md"
-                    >
-                      <div className="flex items-start space-x-3">
-                        <Award className="h-5 w-5 text-blue-600 mt-0.5" />
-                        <div>
-                          <div className="flex items-center">
-                            <h3 className="font-medium">{skill.skill_name}</h3>
-                            <Badge className="ml-2 bg-blue-100 text-blue-800">{skill.category}</Badge>
-                          </div>
-                          {skill.description && <p className="text-sm text-gray-500 mt-1">{skill.description}</p>}
-                        </div>
-                      </div>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => handleDeleteSkill(skill.id)}
-                        className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
+      {loading ? (
+        <div className="flex justify-center items-center py-12">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-600"></div>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Skills You Provide</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {skills.filter((skill) => skill.is_active).length > 0 ? (
+                <motion.div variants={containerVariants} initial="hidden" animate="visible" className="space-y-4">
+                  {skills
+                    .filter((skill) => skill.is_active)
+                    .map((skill) => (
+                      <motion.div
+                        key={skill.id}
+                        variants={itemVariants}
+                        className="flex items-start justify-between p-3 border rounded-md"
                       >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </motion.div>
-                  ))}
-              </motion.div>
-            ) : (
-              <p className="text-gray-500">No skills provided yet.</p>
-            )}
-          </CardContent>
-        </Card>
+                        <div className="flex items-start space-x-3">
+                          <Award className="h-5 w-5 text-blue-600 mt-0.5" />
+                          <div>
+                            <div className="flex items-center">
+                              <h3 className="font-medium">{skill.name}</h3>
+                              <Badge className="ml-2 bg-blue-100 text-blue-800">{skill.category}</Badge>
+                            </div>
+                            {skill.description && <p className="text-sm text-gray-500 mt-1">{skill.description}</p>}
+                          </div>
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => handleDeleteSkill(skill.id)}
+                          className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </motion.div>
+                    ))}
+                </motion.div>
+              ) : (
+                <p className="text-gray-500">No skills provided yet.</p>
+              )}
+            </CardContent>
+          </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Skills You Want to Learn</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {skills.filter((skill) => skill.intent === "seeker").length > 0 ? (
-              <motion.div variants={containerVariants} initial="hidden" animate="visible" className="space-y-4">
-                {skills
-                  .filter((skill) => skill.intent === "seeker")
-                  .map((skill) => (
-                    <motion.div
-                      key={skill.id}
-                      variants={itemVariants}
-                      className="flex items-start justify-between p-3 border rounded-md"
-                    >
-                      <div className="flex items-start space-x-3">
-                        <Award className="h-5 w-5 text-purple-600 mt-0.5" />
-                        <div>
-                          <div className="flex items-center">
-                            <h3 className="font-medium">{skill.skill_name}</h3>
-                            <Badge className="ml-2 bg-purple-100 text-purple-800">{skill.category}</Badge>
-                          </div>
-                          {skill.description && <p className="text-sm text-gray-500 mt-1">{skill.description}</p>}
-                        </div>
-                      </div>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => handleDeleteSkill(skill.id)}
-                        className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
+          <Card>
+            <CardHeader>
+              <CardTitle>Skills You Want to Learn</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {skills.filter((skill) => !skill.is_active).length > 0 ? (
+                <motion.div variants={containerVariants} initial="hidden" animate="visible" className="space-y-4">
+                  {skills
+                    .filter((skill) => !skill.is_active)
+                    .map((skill) => (
+                      <motion.div
+                        key={skill.id}
+                        variants={itemVariants}
+                        className="flex items-start justify-between p-3 border rounded-md"
                       >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </motion.div>
-                  ))}
-              </motion.div>
-            ) : (
-              <p className="text-gray-500">No skills you want to learn yet.</p>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+                        <div className="flex items-start space-x-3">
+                          <Award className="h-5 w-5 text-purple-600 mt-0.5" />
+                          <div>
+                            <div className="flex items-center">
+                              <h3 className="font-medium">{skill.name}</h3>
+                              <Badge className="ml-2 bg-purple-100 text-purple-800">{skill.category}</Badge>
+                            </div>
+                            {skill.description && <p className="text-sm text-gray-500 mt-1">{skill.description}</p>}
+                          </div>
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => handleDeleteSkill(skill.id)}
+                          className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </motion.div>
+                    ))}
+                </motion.div>
+              ) : (
+                <p className="text-gray-500">No skills you want to learn yet.</p>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
   )
 }

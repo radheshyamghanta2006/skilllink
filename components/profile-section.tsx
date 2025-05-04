@@ -68,7 +68,7 @@ export function ProfileSection({ user, onProfileUpdate }: ProfileSectionProps) {
           location: formData.location,
           bio: formData.bio,
           updated_at: new Date().toISOString(),
-        })
+        } as any)
         .eq("id", user.id)
         .select("*");
 
@@ -81,7 +81,7 @@ export function ProfileSection({ user, onProfileUpdate }: ProfileSectionProps) {
         // Update local form data with the response data
         setFormData(prev => ({
           ...prev,
-          ...data[0],
+          ...(data[0] as object),
         }));
       }
 
@@ -121,50 +121,31 @@ export function ProfileSection({ user, onProfileUpdate }: ProfileSectionProps) {
     setIsUploading(true);
 
     try {
-      // Create a storage bucket reference
-      const fileExt = file.name.split(".").pop();
-      const fileName = `${user.id}-${Date.now()}.${fileExt}`;
+      // Create a FormData object for the upload
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("bucket", "profile-images");
       
-      // Call the server-side API to ensure the bucket exists
-      const bucketResponse = await fetch('/api/storage/bucket', {
+      // Use our dedicated upload API endpoint that bypasses RLS restrictions
+      const response = await fetch('/api/storage/upload', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ bucketName: 'profile-images' }),
+        body: formData,
+        credentials: 'include', // Important: include auth cookies
       });
       
-      if (!bucketResponse.ok) {
-        const errorData = await bucketResponse.json();
-        console.error("Error creating bucket:", errorData);
-        throw new Error(errorData.error || "Failed to prepare storage bucket");
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error("Upload error:", errorData);
+        throw new Error(errorData.error || errorData.details || "Failed to upload image");
       }
       
-      // Upload image to Supabase Storage
-      const { data: uploadData, error: uploadError } = await supabase.storage
-        .from("profile-images")
-        .upload(fileName, file, {
-          cacheControl: "3600",
-          upsert: true,
-        });
-
-      if (uploadError) {
-        console.error("Upload error:", uploadError);
-        throw new Error("Failed to upload image: " + uploadError.message);
-      }
-
-      // Get public URL for the uploaded image
-      const { data: publicUrlData } = supabase.storage
-        .from("profile-images")
-        .getPublicUrl(fileName);
-
-      const imageUrl = publicUrlData.publicUrl;
+      const data = await response.json();
       
-      // Update profile with new image URL
-      const { data: updateData, error: updateError } = await supabase
+      // After successful upload, update user profile with the new image URL
+      const { data: userData, error: updateError } = await supabase
         .from("users")
         .update({
-          profile_image: imageUrl,
+          profile_image: data.fileUrl,
           updated_at: new Date().toISOString(),
         })
         .eq("id", user.id)
@@ -175,10 +156,10 @@ export function ProfileSection({ user, onProfileUpdate }: ProfileSectionProps) {
         throw new Error("Failed to update profile with new image");
       }
 
-      // Update local form data
+      // Update local form data with the new image URL
       setFormData(prev => ({
         ...prev,
-        profile_image: imageUrl,
+        profile_image: data.fileUrl,
       }));
 
       toast({

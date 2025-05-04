@@ -359,7 +359,7 @@ export function AvailabilityCalendar({ user }: AvailabilityCalendarProps) {
                       </h3>
                       {groupedSlots[dateStr].length > 0 ? (
                         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
-                          {groupedSlots[dateStr].map((slot) => (
+                          {groupedSlots[dateStr].map((slot:any) => (
                             <div key={slot.id} className="flex items-center justify-between p-2 border rounded-md">
                               <div className="flex items-center">
                                 <Clock className="h-4 w-4 mr-2 text-gray-500" />
@@ -367,14 +367,16 @@ export function AvailabilityCalendar({ user }: AvailabilityCalendarProps) {
                                   {slot.start_time.substring(0, 5)} - {slot.end_time.substring(0, 5)}
                                 </span>
                               </div>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={() => handleDeleteSlot(slot.id)}
-                                className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
+                              <div className="flex items-center space-x-2">
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => handleDeleteSlot(slot.id)}
+                                  className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
                             </div>
                           ))}
                         </div>
