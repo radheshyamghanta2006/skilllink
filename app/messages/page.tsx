@@ -28,6 +28,74 @@ export default function MessagesPage() {
   const { toast } = useToast()
   const supabase = createClientComponentClient()
 
+  // Get the user query parameter from the URL
+  useEffect(() => {
+    // Extract user ID from URL query parameter
+    const urlParams = new URLSearchParams(window.location.search)
+    const userIdFromUrl = urlParams.get('user')
+    
+    if (userIdFromUrl && user && !activeConversation) {
+      console.log("Found user ID in URL:", userIdFromUrl)
+      // Try to find this user in conversations
+      const foundConversation = conversations.find(conv => conv.id === userIdFromUrl)
+      
+      if (foundConversation) {
+        // If the user is in the conversations list, set as active
+        setActiveConversation(foundConversation)
+      } else if (user) {
+        // If not found but we have our user, fetch the user details and create a new conversation
+        fetchUserDetails(userIdFromUrl)
+      }
+    }
+  }, [conversations, user]) // Run when conversations or user changes
+
+  // Function to fetch user details for a new conversation
+  const fetchUserDetails = async (userId: string) => {
+    if (!userId) return
+    
+    try {
+      // First check if this user is already in the conversations list
+      // This prevents duplicate entries that could cause React key errors
+      if (conversations.some(conv => conv.id === userId)) {
+        const existingConversation = conversations.find(conv => conv.id === userId)
+        setActiveConversation(existingConversation)
+        return
+      }
+      
+      const { data, error } = await supabase
+        .from("users")
+        .select("id, name, profile_image")
+        .eq("id", userId)
+        .single()
+        
+      if (error) throw error
+      
+      if (data) {
+        // Create a new conversation object
+        const newConversation = {
+          id: data.id,
+          name: data.name,
+          profile_image: data.profile_image,
+          last_message: null,
+          last_message_time: null
+        }
+        
+        // Set as active conversation
+        setActiveConversation(newConversation)
+        
+        // Add to conversations list if not already there
+        setConversations(prevConversations => [...prevConversations, newConversation])
+      }
+    } catch (error) {
+      console.error("Error fetching user details:", error)
+      toast({
+        title: "Error",
+        description: "Failed to load user information.",
+        variant: "destructive",
+      })
+    }
+  }
+
   useEffect(() => {
     const checkUser = async () => {
       const {
@@ -87,8 +155,11 @@ export default function MessagesPage() {
     }
   }, [activeConversation, user])
 
+  // Only scroll to bottom when messages change AND there are messages to scroll to
   useEffect(() => {
-    scrollToBottom()
+    if (messages.length > 0) {
+      scrollToBottom()
+    }
   }, [messages])
 
   const fetchConversations = async (userId: string) => {
@@ -98,17 +169,15 @@ export default function MessagesPage() {
         .from("messages")
         .select("recipient_id")
         .eq("sender_id", userId)
-        .distinct()
 
       const { data: receivedMessages, error: receivedError } = await supabase
         .from("messages")
         .select("sender_id")
         .eq("recipient_id", userId)
-        .distinct()
 
       if (sentError || receivedError) throw sentError || receivedError
 
-      // Combine unique user IDs
+      // Create unique userIds using Set
       const userIds = new Set([
         ...(sentMessages?.map((msg) => msg.recipient_id) || []),
         ...(receivedMessages?.map((msg) => msg.sender_id) || []),
@@ -192,6 +261,12 @@ export default function MessagesPage() {
       if (error) throw error
 
       setMessages(data || [])
+      
+      // After setting messages, scroll to bottom with a slight delay
+      // to ensure messages are rendered before scrolling
+      if (data && data.length > 0) {
+        setTimeout(() => scrollToBottom(), 200)
+      }
 
       // Mark messages as read
       await supabase
@@ -256,7 +331,10 @@ export default function MessagesPage() {
   }
 
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
+    // Use a small timeout to ensure DOM is updated before scrolling
+    setTimeout(() => {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
+    }, 100)
   }
 
   const getInitials = (name: string) => {
@@ -360,7 +438,7 @@ export default function MessagesPage() {
                     </div>
                   </div>
                 </div>
-                <CardContent className="flex-grow overflow-y-auto p-4">
+                <CardContent className="flex-grow overflow-y-auto p-4" id="message-container">
                   <div className="space-y-4">
                     {messages.length > 0 ? (
                       messages.map((message) => (
