@@ -4,6 +4,8 @@ import { User, Calendar, Clock, Settings, MessageSquare, Star, RefreshCw } from 
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
+import { useRouter } from "next/navigation"
+
 
 type DashboardSidebarProps = {
   user: any
@@ -19,6 +21,7 @@ export function DashboardSidebar({ user, activeTab, setActiveTab }: DashboardSid
       .join("")
       .toUpperCase()
   }
+  const router = useRouter()
 
   return (
     <div className="lg:col-span-1">
@@ -95,7 +98,9 @@ export function DashboardSidebar({ user, activeTab, setActiveTab }: DashboardSid
         <div className="mt-8 pt-6 border-t">
           <h3 className="font-medium mb-4">Quick Actions</h3>
           <div className="space-y-2">
-            <Button variant="outline" className="w-full justify-start">
+            <Button variant="outline" className="w-full justify-start" onClick={() => {
+              router.push("/messages");
+            }}>
               <MessageSquare className="mr-2 h-4 w-4" />
               Messages
             </Button>
