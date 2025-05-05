@@ -441,9 +441,9 @@ export default function MessagesPage() {
                 <CardContent className="flex-grow overflow-y-auto p-4" id="message-container">
                   <div className="space-y-4">
                     {messages.length > 0 ? (
-                      messages.map((message) => (
+                      messages.map((message, index) => (
                         <div
-                          key={message.id}
+                          key={`${message.id}-${index}`}
                           className={`flex ${message.sender_id === user.id ? "justify-end" : "justify-start"}`}
                         >
                           <div

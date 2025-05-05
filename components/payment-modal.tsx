@@ -43,9 +43,24 @@ export function PaymentModal({ booking, isOpen, onClose, onSuccess }: PaymentMod
     if (paymentMethod === "offline") {
       try {
         setIsLoading(true)
+        console.log("Processing offline payment for booking:", booking.id)
 
-        // In a real app, this would update the booking in the database
-        await new Promise((resolve) => setTimeout(resolve, 1000))
+        // Update the booking in the database to mark payment as pending and status as confirmed
+        const { error } = await supabase
+          .from('bookings')
+          .update({ 
+            payment_status: 'pending',
+            status: 'confirmed',
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', booking.id)
+
+        if (error) {
+          console.error("Database error when updating booking:", error)
+          throw error
+        }
+
+        console.log("Booking updated successfully for offline payment")
 
         toast({
           title: "Payment marked as offline",
@@ -68,10 +83,10 @@ export function PaymentModal({ booking, isOpen, onClose, onSuccess }: PaymentMod
 
     // For online payment with Razorpay
     setIsLoading(true)
+    console.log("Processing online payment for booking:", booking.id)
 
     try {
       // In a real app, this would create an order on your backend
-      // For demo purposes, we'll simulate it
       const amount = 5000 // ₹50.00 (in paise)
       const currency = "INR"
       const orderId = `order_${Date.now()}`
@@ -126,8 +141,25 @@ export function PaymentModal({ booking, isOpen, onClose, onSuccess }: PaymentMod
 
   const handlePaymentSuccess = async (response: any) => {
     try {
-      // In a real app, this would verify the payment on your backend
-      // and update the booking status
+      console.log("Payment successful, updating booking:", booking.id)
+      
+      // Update the booking in the database to mark payment as paid and status as confirmed
+      const { error } = await supabase
+        .from('bookings')
+        .update({ 
+          payment_status: 'paid',
+          status: 'confirmed',
+          payment_id: response.razorpay_payment_id,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', booking.id)
+
+      if (error) {
+        console.error("Database error when updating booking after payment:", error)
+        throw error
+      }
+
+      console.log("Booking updated successfully after payment")
 
       toast({
         title: "Payment successful",

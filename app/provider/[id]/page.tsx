@@ -102,17 +102,25 @@ export default function ProviderPage() {
     fetchData()
   }, [params.id])
 
-  const handleBookingSuccess = () => {
+  const handleBookingSuccess = (bookingData: any) => {
+    console.log("Booking created successfully:", bookingData)
+    setSelectedBooking(bookingData)
     setIsBookingModalOpen(false)
     setIsPaymentModalOpen(true)
   }
 
   const handlePaymentSuccess = () => {
+    console.log("Payment completed for booking:", selectedBooking?.id)
     setIsPaymentModalOpen(false)
+    
+    // Show success toast
     toast({
       title: "Booking confirmed",
-      description: "Your booking has been successfully confirmed.",
+      description: "Your booking has been successfully confirmed and added to your dashboard.",
     })
+    
+    // Optional: Navigate to the dashboard to show the booking
+    // setTimeout(() => router.push('/dashboard'), 2000)
   }
 
   if (loading) {

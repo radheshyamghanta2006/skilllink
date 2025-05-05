@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation" // Added router import
 import { motion } from "framer-motion"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent } from "@/components/ui/card"
@@ -24,6 +25,7 @@ export function BookingsList({ user }: BookingsListProps) {
   const [selectedBooking, setSelectedBooking] = useState<any>(null)
   const { toast } = useToast()
   const supabase = createClientComponentClient()
+  const router = useRouter() // Initialize router
 
   useEffect(() => {
     fetchBookings()
@@ -35,6 +37,8 @@ export function BookingsList({ user }: BookingsListProps) {
     setLoading(true)
 
     try {
+      console.log("Fetching bookings for user:", user.id, "with role:", user.role)
+      
       // Determine which bookings to fetch based on user role
       let query = supabase
         .from('bookings')
@@ -49,14 +53,17 @@ export function BookingsList({ user }: BookingsListProps) {
         query = query.eq('provider_id', user.id)
       } else if (user.role === 'seeker' || user.current_mode === 'seeker') {
         query = query.eq('seeker_id', user.id)
-      } else if (user.role === 'both') {
+      } else {
+        // For 'both' role or any other case, get all bookings where user is either provider or seeker
         query = query.or(`provider_id.eq.${user.id},seeker_id.eq.${user.id}`)
       }
       
       // Execute the query
-      const { data, error } = await query.order('date', { ascending: false })
+      const { data, error } = await query.order('created_at', { ascending: false })
 
       if (error) throw error
+      
+      console.log("Bookings fetched:", data?.length || 0, "bookings")
       
       // Check if the booking has reviews
       const enhancedBookings = await Promise.all((data || []).map(async (booking) => {
@@ -184,6 +191,15 @@ export function BookingsList({ user }: BookingsListProps) {
         variant: "destructive",
       })
     }
+  }
+
+  // Handle message button click - navigate to messages with the correct user ID
+  const handleMessageClick = (booking: any) => {
+    // Determine which user ID to chat with based on the current user's role
+    const chatUserId = user.id === booking.provider_id ? booking.seeker_id : booking.provider_id
+    
+    // Navigate to the messages page with the user ID as a query parameter
+    router.push(`/messages?user=${chatUserId}`)
   }
 
   const getStatusBadge = (status: string) => {
@@ -426,6 +442,7 @@ export function BookingsList({ user }: BookingsListProps) {
                           size="sm"
                           variant="ghost"
                           className="text-gray-600 hover:text-purple-600 hover:bg-purple-50"
+                          onClick={() => handleMessageClick(booking)}
                         >
                           <MessageSquare className="mr-1 h-4 w-4" />
                           Message
