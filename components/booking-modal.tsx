@@ -18,9 +18,10 @@ type BookingModalProps = {
   currentUser: any
   isOpen: boolean
   onClose: () => void
+  onSuccess?: (bookingData: any) => void
 }
 
-export function BookingModal({ provider, currentUser, isOpen, onClose }: BookingModalProps) {
+export function BookingModal({ provider, currentUser, isOpen, onClose, onSuccess }: BookingModalProps) {
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null)
   const [notes, setNotes] = useState("")
   const [isLoading, setIsLoading] = useState(false)
@@ -45,21 +46,58 @@ export function BookingModal({ provider, currentUser, isOpen, onClose }: Booking
     setIsLoading(true)
 
     try {
-      // In a real app, this would create a booking in the database
-      // For demo purposes, we'll just simulate a delay
-      await new Promise((resolve) => setTimeout(resolve, 1500))
+      // Get the selected slot
+      const selectedSlotData = availableSlots.find(slot => slot.id === selectedSlot)
+      
+      if (!selectedSlotData) {
+        throw new Error("Selected time slot not found")
+      }
+
+      // Create the booking in the database
+      const { data: bookingData, error: bookingError } = await supabase
+        .from('bookings')
+        .insert([{
+          provider_id: provider.id,
+          seeker_id: currentUser.id,
+          slot_id: selectedSlot,
+          date: selectedSlotData.date,
+          start_time: selectedSlotData.start_time,
+          end_time: selectedSlotData.end_time,
+          service_name: provider.skills?.[0]?.skill_name || "Skill Service",
+          notes: notes,
+          status: "pending",
+          payment_status: "pending",
+          payment_amount: 50.00
+        }])
+        .select()
+        .single()
+
+      if (bookingError) throw bookingError
+
+      // Mark the slot as unavailable
+      const { error: slotError } = await supabase
+        .from('availability_slots')
+        .update({ is_available: false })
+        .eq('id', selectedSlot)
+
+      if (slotError) throw slotError
 
       toast({
-        title: "Booking requested",
+        title: "Booking created successfully!",
         description: "Your booking request has been sent to the provider.",
       })
 
-      onClose()
+      // Call the success callback with the booking data
+      if (onSuccess && bookingData) {
+        onSuccess(bookingData)
+      } else {
+        onClose()
+      }
     } catch (error) {
       console.error("Error creating booking:", error)
       toast({
         title: "Error",
-        description: "Failed to create booking.",
+        description: "Failed to create booking. Please try again.",
         variant: "destructive",
       })
     } finally {
