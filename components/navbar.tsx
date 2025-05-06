@@ -483,7 +483,7 @@ export function Navbar() {
                   <Link href="/" className="flex items-center space-x-2">
                     <div className="relative w-8 h-8">
                       <Image
-                        src="/placeholder.svg?height=32&width=32"
+                        src="/logo.png?height=32&width=32"
                         alt="SkillLink Logo"
                         fill
                         className="object-contain"

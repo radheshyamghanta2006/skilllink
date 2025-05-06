@@ -18,7 +18,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 import { useToast } from "@/components/ui/use-toast"
-import { useSearchParams } from "next/navigation"
+
 
 // Create a separate client component that uses useSearchParams
 function DashboardTabs({ user, activeTab, setActiveTab }: { user: any; activeTab: string; setActiveTab: (tab: string) => void }) {
@@ -78,7 +78,10 @@ export default function DashboardPage() {
   const [user, setUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
 
-  const [activeTab, setActiveTab] = useState(validTabs.includes(tabParam as string) ? tabParam as string : "bookings")
+  const validTabs = ['bookings', 'availability', 'profile', 'skills', 'notifications'];
+  const searchParams = useSearchParams();
+  const tabParam = searchParams.get('tab');
+  const [activeTab, setActiveTab] = useState(validTabs.includes(tabParam as string) ? tabParam as string : "bookings");
   const [notifications, setNotifications] = useState<any[]>([])
   const [unreadCount, setUnreadCount] = useState(0)
 
@@ -229,6 +232,12 @@ export default function DashboardPage() {
       </div>
     )
   }
+
+  // Function to handle tab changes
+  const handleTabChange = (value: string) => {
+    setActiveTab(value);
+    router.push(`/dashboard?tab=${value}`, { scroll: false });
+  };
 
   return (
     <div className="min-h-screen flex flex-col bg-white dark:bg-gray-950 transition-colors duration-300">
