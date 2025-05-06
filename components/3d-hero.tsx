@@ -14,11 +14,13 @@ function SceneInitializer() {
   const { scene, gl } = useThree()
   
   useEffect(() => {
-    scene.fog = new THREE.Fog('#000000', 5, 15)
-    gl.setClearColor('#000000', 0)
-    
-    return () => {
-      scene.fog = null
+    if (scene) {
+      scene.fog = new THREE.Fog('#000000', 5, 15)
+      gl.setClearColor('#000000', 0)
+      
+      return () => {
+        scene.fog = null
+      }
     }
   }, [scene, gl])
   
@@ -32,7 +34,7 @@ function Particles({ count = 50 }) {
   
   // Create particles array immediately and store in state to maintain stability
   const particles = React.useMemo(() => {
-    return Array.from({ length: count }, () => ({
+    return Array.from({ length: count || 0 }, () => ({
       position: [
         Math.random() * 10 - 5,
         Math.random() * 10 - 5,
@@ -47,7 +49,7 @@ function Particles({ count = 50 }) {
     setIsReady(true)
   }, [])
 
-  if (!isReady) return null
+  if (!isReady || !particles) return null
   
   return (
     <>

@@ -184,7 +184,7 @@ export function HeroSection() {
         
         {/* Animated dots pattern */}
         <div className="absolute inset-0 opacity-10">
-          {[...Array(20)].map((_, i) => (
+          {Array.from({ length: 20 }).map((_, i) => (
             <motion.div
               key={i}
               className="absolute w-2 h-2 bg-gradient-to-r from-purple-600 to-blue-600 dark:from-purple-400 dark:to-blue-400 rounded-full transition-colors duration-500"
@@ -300,6 +300,7 @@ export function HeroSection() {
               </div>
             </motion.form>
 
+            {/* Popular search terms section */}
             <motion.div 
               className="flex flex-wrap justify-center lg:justify-start gap-2 text-sm text-gray-500 dark:text-gray-400 transition-colors duration-300"
               variants={letterVariants}
@@ -432,7 +433,7 @@ export function HeroSection() {
                   <div className="flex items-center">
                     <span className="font-medium text-gray-800 dark:text-gray-100 transition-colors duration-300">Sarah T.</span>
                     <div className="flex ml-2">
-                      {Array(5).fill(0).map((_, star) => (
+                      {Array.from({ length: 5 }).map((_, star) => (
                         <Star 
                           key={star} 
                           className="w-3.5 h-3.5 text-yellow-500 dark:text-yellow-400 fill-current transition-colors duration-300" 
@@ -471,7 +472,7 @@ export function HeroSection() {
                   <div className="flex items-center">
                     <span className="font-medium text-gray-800 dark:text-gray-100 transition-colors duration-300">Michael R.</span>
                     <div className="flex ml-2">
-                      {Array(5).fill(0).map((_, star) => (
+                      {Array.from({ length: 5 }).map((_, star) => (
                         <Star
                           key={star} 
                           className="w-3.5 h-3.5 text-yellow-500 dark:text-yellow-400 fill-current transition-colors duration-300" 
