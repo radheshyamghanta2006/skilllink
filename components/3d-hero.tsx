@@ -7,6 +7,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
 import * as THREE from 'three'
 import { motion } from "framer-motion"
 import { useTheme } from "next-themes"
+import { useRouter } from 'next/navigation'
 
 // Scene initialization component to ensure proper context
 function SceneInitializer() {
@@ -97,11 +98,20 @@ function TorusKnot() {
 export function Hero3D() {
   const { theme } = useTheme()
   const [isLoaded, setIsLoaded] = useState(false)
+  const router = useRouter()
 
   useEffect(() => {
     // Mark component as loaded after initial render
     setIsLoaded(true)
   }, [])
+
+  const scrollToHowItWorks = () => {
+    // Find the how-it-works section and scroll to it
+    const howItWorksSection = document.getElementById('how-it-works')
+    if (howItWorksSection) {
+      howItWorksSection.scrollIntoView({ behavior: 'smooth' })
+    }
+  }
 
   return (
     <motion.div
@@ -153,10 +163,16 @@ export function Hero3D() {
             animate={{ y: 0, opacity: isLoaded ? 1 : 0 }}
             transition={{ duration: 0.8, delay: 0.7 }}
           >
-            <button className="px-8 py-3 rounded-full bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold hover:from-purple-700 hover:to-blue-700 transform hover:scale-105 transition-all shadow-lg">
+            <button 
+              className="px-8 py-3 rounded-full bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold hover:from-purple-700 hover:to-blue-700 transform hover:scale-105 transition-all shadow-lg"
+              onClick={() => router.push('/explore')}
+            >
               Get Started
             </button>
-            <button className="px-8 py-3 rounded-full border-2 border-purple-600 text-foreground font-semibold hover:bg-purple-50 dark:hover:bg-gray-800 transform hover:scale-105 transition-all">
+            <button 
+              className="px-8 py-3 rounded-full border-2 border-purple-600 text-foreground font-semibold hover:bg-purple-50 dark:hover:bg-gray-800 transform hover:scale-105 transition-all"
+              onClick={scrollToHowItWorks}
+            >
               Learn More
             </button>
           </motion.div>

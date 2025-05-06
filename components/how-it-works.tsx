@@ -102,9 +102,10 @@ export function HowItWorks() {
           <div className="h-1 w-20 bg-gradient-to-r from-purple-500 to-blue-500 dark:from-purple-400 dark:to-blue-400 mx-auto mt-6 rounded-full"></div>
         </motion.div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+        {/* Desktop View - Only shown on lg screens and up */}
+        <div className="hidden lg:grid grid-cols-2 gap-12 items-center">
           {/* Tabs and content for larger screens */}
-          <div className="hidden lg:block">
+          <div>
             {isClient && (
               <AnimatePresence mode="wait">
                 <motion.div 
@@ -141,7 +142,7 @@ export function HowItWorks() {
             )}
           </div>
 
-          {/* Step indicators */}
+          {/* Step indicators for desktop */}
           <div>
             <motion.div
               variants={containerVariants}
@@ -183,7 +184,7 @@ export function HowItWorks() {
                     <h3 className={`font-bold text-lg mb-1 transition-colors duration-300 ${index === activeTab ? "text-gray-800 dark:text-gray-100" : "text-gray-700 dark:text-gray-300"}`}>
                       {step.title}
                     </h3>
-                    <p className={`${index === activeTab ? "text-gray-600 dark:text-gray-300" : "text-gray-500 dark:text-gray-400"} lg:hidden`}>
+                    <p className={`${index === activeTab ? "text-gray-600 dark:text-gray-300" : "text-gray-500 dark:text-gray-400"}`}>
                       {step.description}
                     </p>
                   </div>
@@ -202,16 +203,20 @@ export function HowItWorks() {
               ))}
             </motion.div>
           </div>
+        </div>
           
-          {/* Mobile view */}
-          <div className="lg:hidden space-y-6">
+        {/* Mobile View - Only shown on screens smaller than lg */}
+        <div className="block lg:hidden">
+          <motion.div 
+            variants={containerVariants}
+            initial="hidden"
+            animate="visible"
+            className="space-y-6"
+          >
             {steps.map((step, index) => (
               <motion.div 
                 key={index} 
                 variants={itemVariants}
-                initial="hidden"
-                whileInView="visible"
-                viewport={{ once: true, margin: "-50px" }}
                 whileHover={{ y: -5 }}
                 className={`bg-white dark:bg-gray-800 rounded-xl shadow-md p-6 border border-gray-100 dark:border-gray-700 ${step.bgColor}`}
               >
@@ -229,7 +234,7 @@ export function HowItWorks() {
                 <p className="text-gray-600 dark:text-gray-300">{step.description}</p>
               </motion.div>
             ))}
-          </div>
+          </motion.div>
         </div>
       </div>
     </section>
