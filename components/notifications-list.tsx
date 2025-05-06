@@ -89,6 +89,22 @@ export function NotificationsList({ notifications, onMarkAsRead }: Notifications
     }
   }
 
+  // Safely handle undefined notifications
+  if (!notifications) {
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="text-center py-8"
+      >
+        <Bell className="h-8 w-8 text-gray-400 mx-auto mb-3" />
+        <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">
+          Loading notifications...
+        </h3>
+      </motion.div>
+    );
+  }
+
   return (
     <AnimatePresence>
       <motion.div
@@ -97,58 +113,59 @@ export function NotificationsList({ notifications, onMarkAsRead }: Notifications
         animate="visible"
         className="space-y-4"
       >
-        {notifications.map((notification) => (
-          <motion.div 
-            key={notification.id} 
-            variants={itemVariants}
-            initial="hidden"
-            animate="visible"
-            exit="exit"
-            layoutId={notification.id}
-            className="w-full"
-          >
-            <Card className={`relative overflow-hidden transition-colors duration-200 ${
-              !notification.is_read ? 'border-l-4 border-l-purple-600' : ''
-            }`}>
-              <CardContent className="p-4">
-                <div className="flex items-start gap-4">
-                  <div className="flex-shrink-0 mt-1">
-                    {getNotificationIcon(notification.type)}
-                  </div>
-                  <div className="flex-grow min-w-0">
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-1">
-                      <h4 className="font-medium text-gray-900 dark:text-gray-100 truncate">
-                        {notification.title}
-                      </h4>
-                      <div className="flex items-center gap-2 flex-shrink-0">
-                        {getNotificationBadge(notification.type)}
-                        <span className="text-sm text-gray-500 whitespace-nowrap">
-                          {formatTimeAgo(new Date(notification.created_at))}
-                        </span>
-                      </div>
+        {notifications && notifications.length > 0 ? (
+          notifications.map((notification) => (
+            <motion.div 
+              key={notification.id} 
+              variants={itemVariants}
+              initial="hidden"
+              animate="visible"
+              exit="exit"
+              layoutId={notification.id}
+              className="w-full"
+            >
+              <Card className={`relative overflow-hidden transition-colors duration-200 ${
+                !notification.is_read ? 'border-l-4 border-l-purple-600' : ''
+              }`}>
+                <CardContent className="p-4">
+                  <div className="flex items-start gap-4">
+                    <div className="flex-shrink-0 mt-1">
+                      {getNotificationIcon(notification.type)}
                     </div>
-                    <p className="text-gray-600 dark:text-gray-300 text-sm">
-                      {notification.message}
-                    </p>
-                    {!notification.is_read && (
-                      <div className="mt-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-purple-600 hover:text-purple-700 hover:bg-purple-50 dark:text-purple-400 dark:hover:bg-purple-900/20"
-                          onClick={() => onMarkAsRead(notification.id)}
-                        >
-                          Mark as read
-                        </Button>
+                    <div className="flex-grow min-w-0">
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-1">
+                        <h4 className="font-medium text-gray-900 dark:text-gray-100 truncate">
+                          {notification.title}
+                        </h4>
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          {getNotificationBadge(notification.type)}
+                          <span className="text-sm text-gray-500 whitespace-nowrap">
+                            {formatTimeAgo(new Date(notification.created_at))}
+                          </span>
+                        </div>
                       </div>
-                    )}
+                      <p className="text-gray-600 dark:text-gray-300 text-sm">
+                        {notification.message}
+                      </p>
+                      {!notification.is_read && (
+                        <div className="mt-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-purple-600 hover:text-purple-700 hover:bg-purple-50 dark:text-purple-400 dark:hover:bg-purple-900/20"
+                            onClick={() => onMarkAsRead(notification.id)}
+                          >
+                            Mark as read
+                          </Button>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
-        ))}
-        {notifications.length === 0 && (
+                </CardContent>
+              </Card>
+            </motion.div>
+          ))
+        ) : (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}

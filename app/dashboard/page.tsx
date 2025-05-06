@@ -1,9 +1,6 @@
 "use client"
 
-
-import { useState, useEffect, useCallback, useRef } from "react"
-import { useRouter, useSearchParams } from "next/navigation"
-
+import { useState, useEffect, useCallback, useRef, Suspense } from "react"
 import { motion } from "framer-motion"
 import { Navbar } from "@/components/navbar"
 import { Footer } from "@/components/footer"
@@ -75,6 +72,7 @@ function TabSelector({ setActiveTab }: { setActiveTab: (tab: string) => void }) 
 }
 
 export default function DashboardPage() {
+  // Initialize arrays with empty arrays instead of null by default
   const [user, setUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
 
@@ -89,7 +87,12 @@ export default function DashboardPage() {
   const { toast } = useToast()
   const supabase = createClientComponentClient()
   const bookingsListRef = useRef<any>(null);
-
+  
+  // Use a state updater function that can be passed to the TabSelector component
+  const updateActiveTab = useCallback((tab: string) => {
+    setActiveTab(tab);
+  }, []);
+  
   // Function to fetch user data
   const fetchUserData = useCallback(async () => {
     try {
@@ -132,12 +135,22 @@ export default function DashboardPage() {
     }
   }, [supabase, router, toast])
 
+  // Initial fetch of user data
+  useEffect(() => {
+    fetchUserData();
+  }, [fetchUserData]);
+
   // Function to handle profile updates
   const handleProfileUpdate = useCallback(() => {
     console.log("Dashboard: handleProfileUpdate called - refreshing user data");
     fetchUserData();
   }, [fetchUserData]);
 
+  // Function to handle tab changes
+  const handleTabChange = (value: string) => {
+    setActiveTab(value)
+    router.push(`/dashboard?tab=${value}`, { scroll: false })
+  }
 
   const fetchBookings = () => {
     // Trigger refresh in BookingsList component if it exists
@@ -146,6 +159,7 @@ export default function DashboardPage() {
     }
   }
 
+  // Subscribe to notifications only when user is available
   useEffect(() => {
     if (!user) return
 
@@ -162,7 +176,7 @@ export default function DashboardPage() {
         },
         (payload) => {
           // Add new notification to state
-          setNotifications(prev => [payload.new, ...prev])
+          setNotifications(prev => [payload.new, ...(prev || [])])
           // Increment unread count
           setUnreadCount(prev => prev + 1)
           
@@ -185,16 +199,23 @@ export default function DashboardPage() {
 
     // Fetch existing notifications
     const fetchNotifications = async () => {
-      const { data: notifs, error } = await supabase
-        .from('notifications')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
-        .limit(50)
+      try {
+        const { data: notifs, error } = await supabase
+          .from('notifications')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
+          .limit(50)
 
-      if (!error && notifs) {
-        setNotifications(notifs)
-        setUnreadCount(notifs.filter(n => !n.is_read).length)
+        if (!error && notifs) {
+          setNotifications(notifs || [])
+          setUnreadCount((notifs || []).filter(n => !n.is_read).length)
+        }
+      } catch (err) {
+        console.error("Error fetching notifications:", err)
+        // Initialize with empty array on error
+        setNotifications([])
+        setUnreadCount(0)
       }
     }
 
@@ -204,7 +225,7 @@ export default function DashboardPage() {
     return () => {
       supabase.removeChannel(notificationsChannel)
     }
-  }, [user])
+  }, [user, toast, supabase, activeTab])
 
   const markNotificationAsRead = async (notificationId: string) => {
     const { error } = await supabase
@@ -213,20 +234,36 @@ export default function DashboardPage() {
       .eq('id', notificationId)
 
     if (!error) {
-      setNotifications(notifications.map(n => 
+      setNotifications((notifications || []).map(n => 
         n.id === notificationId ? { ...n, is_read: true } : n
       ))
       setUnreadCount(prev => Math.max(0, prev - 1))
     }
   }
 
-
+  // Safe rendering for loading state
   if (loading) {
     return (
       <div className="min-h-screen flex flex-col">
         <Navbar />
         <main className="flex-grow flex items-center justify-center">
           <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-600 dark:border-purple-500"></div>
+        </main>
+        <Footer />
+      </div>
+    )
+  }
+
+  // Safe guard for user not loaded
+  if (!user) {
+    return (
+      <div className="min-h-screen flex flex-col">
+        <Navbar />
+        <main className="flex-grow flex items-center justify-center">
+          <div className="text-center">
+            <h2 className="text-xl mb-4">Unable to load user profile</h2>
+            <Button onClick={() => router.push("/login")}>Return to Login</Button>
+          </div>
         </main>
         <Footer />
       </div>
@@ -242,6 +279,16 @@ export default function DashboardPage() {
   return (
     <div className="min-h-screen flex flex-col bg-white dark:bg-gray-950 transition-colors duration-300">
       <Navbar />
+      
+      {/* This suspense boundary is required for useSearchParams() */}
+      <Suspense fallback={
+        <div className="flex-grow container mx-auto px-4 py-8 flex justify-center items-center">
+          <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-purple-600"></div>
+        </div>
+      }>
+        <TabSelector setActiveTab={updateActiveTab} />
+      </Suspense>
+      
       <main className="flex-grow container mx-auto px-4 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
 
@@ -306,7 +353,7 @@ export default function DashboardPage() {
                               .eq('is_read', false)
 
                             if (!error) {
-                              setNotifications(notifications.map(n => ({ ...n, is_read: true })))
+                              setNotifications((notifications || []).map(n => ({ ...n, is_read: true })))
                               setUnreadCount(0)
                               toast({
                                 title: "Success",
