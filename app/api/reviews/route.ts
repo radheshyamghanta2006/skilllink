@@ -1,6 +1,18 @@
-import { NextResponse } from "next/server"
 import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs"
 import { cookies } from "next/headers"
+import { NextResponse } from "next/server"
+
+type Review = {
+  booking_id: string
+  rating: number
+  comment: string
+  reviewer_id: string
+  reviewee_id: string
+  provider_id: string
+  seeker_id: string
+  is_provider_review: boolean
+  skill_swap_direction?: 'received' | 'provided'
+}
 
 export async function POST(request: Request) {
   try {
@@ -17,17 +29,28 @@ export async function POST(request: Request) {
     }
 
     // Get review data from request
-    const { booking_id, rating, comment } = await request.json()
+    const reviewData: Review = await request.json()
 
-    if (!booking_id || !rating || rating < 1 || rating > 5) {
-      return NextResponse.json({ error: "Invalid review data" }, { status: 400 })
+    // Validate required fields
+    if (!reviewData.booking_id || !reviewData.rating || !reviewData.comment) {
+      return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
+    }
+
+    // Validate rating range
+    if (reviewData.rating < 1 || reviewData.rating > 5) {
+      return NextResponse.json({ error: "Rating must be between 1 and 5" }, { status: 400 })
+    }
+
+    // Validate comment length
+    if (reviewData.comment.trim().length < 3) {
+      return NextResponse.json({ error: "Comment must be at least 3 characters long" }, { status: 400 })
     }
 
     // Check if booking exists and is completed
     const { data: booking, error: fetchError } = await supabase
       .from("bookings")
       .select("*")
-      .eq("id", booking_id)
+      .eq("id", reviewData.booking_id)
       .single()
 
     if (fetchError || !booking) {
@@ -40,50 +63,49 @@ export async function POST(request: Request) {
 
     // Check if user is either the provider or seeker of the booking
     if (booking.provider_id !== session.user.id && booking.seeker_id !== session.user.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 403 })
+      return NextResponse.json({ error: "Unauthorized to review this booking" }, { status: 403 })
     }
-
-    // Determine reviewer and reviewee
-    const isProvider = booking.provider_id === session.user.id
-    const reviewer_id = session.user.id
-    const reviewee_id = isProvider ? booking.seeker_id : booking.provider_id
 
     // Check if user has already reviewed this booking
     const { data: existingReview, error: checkError } = await supabase
       .from("reviews")
       .select("*")
-      .eq("booking_id", booking_id)
-      .eq("reviewer_id", reviewer_id)
+      .eq("booking_id", reviewData.booking_id)
+      .eq("reviewer_id", session.user.id)
       .maybeSingle()
 
     if (existingReview) {
       return NextResponse.json({ error: "You have already reviewed this booking" }, { status: 400 })
     }
 
+    // For skill swaps, validate both reviews are submitted
+    if (booking.is_skill_swap) {
+      if (!reviewData.skill_swap_direction) {
+        return NextResponse.json({ error: "Skill swap direction is required for skill swap reviews" }, { status: 400 })
+      }
+    }
+
     // Create review
     const { data, error } = await supabase
       .from("reviews")
-      .insert([
-        {
-          booking_id,
-          reviewer_id,
-          reviewee_id,
-          provider_id: booking.provider_id,
-          seeker_id: booking.seeker_id,
-          rating,
-          comment,
-        },
-      ])
+      .insert([reviewData])
       .select()
       .single()
 
     if (error) {
-      return NextResponse.json({ error: "Failed to create review" }, { status: 400 })
+      console.error("Error creating review:", error)
+      return NextResponse.json({ error: "Failed to create review" }, { status: 500 })
     }
+
+    // Update booking with review status
+    await supabase
+      .from("bookings")
+      .update({ has_review: true })
+      .eq("id", reviewData.booking_id)
 
     return NextResponse.json({ review: data })
   } catch (error) {
-    console.error("Error creating review:", error)
+    console.error("Error processing review:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }
