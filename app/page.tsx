@@ -13,14 +13,22 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { ArrowRight } from "lucide-react"
 
 // Dynamically import the 3D hero component to avoid SSR issues with Three.js
-const Hero3D = dynamic(() => import("@/components/3d-hero").then(mod => ({ default: mod.Hero3D })), {
-  ssr: false,
-  loading: () => (
-    <div className="w-full h-[70vh] flex items-center justify-center bg-gradient-to-r from-purple-50 to-blue-50 dark:from-gray-900 dark:to-gray-800 transition-colors duration-500">
-      <Skeleton className="w-full h-full" />
-    </div>
-  )
-})
+const Hero3D = dynamic(
+  () => import("@/components/3d-hero").then(mod => ({ default: mod.Hero3D })), 
+  {
+    ssr: false,
+    loading: () => (
+      <div className="w-full h-[70vh] flex items-center justify-center bg-gradient-to-r from-purple-50 to-blue-50 dark:from-gray-900 dark:to-gray-800 transition-colors duration-500">
+        <div className="flex flex-col items-center space-y-4">
+          <Skeleton className="w-full h-full absolute inset-0" />
+          <div className="relative z-10">
+            <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-purple-600"></div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+)
 
 export default function Home() {
   const router = useRouter()
