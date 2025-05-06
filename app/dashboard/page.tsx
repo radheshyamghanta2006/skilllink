@@ -1,7 +1,7 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
-import { useRouter, useSearchParams } from "next/navigation"
+import { useState, useEffect, useCallback, Suspense } from "react"
+import { useRouter } from "next/navigation"
 import { motion } from "framer-motion"
 import { Navbar } from "@/components/navbar"
 import { Footer } from "@/components/footer"
@@ -13,15 +13,66 @@ import { SkillsSection } from "@/components/skills-section"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 import { useToast } from "@/components/ui/use-toast"
+import { useSearchParams } from "next/navigation"
 
-export default function DashboardPage() {
+// Create a separate client component that uses useSearchParams
+function DashboardTabs({ user, activeTab, setActiveTab }: { user: any; activeTab: string; setActiveTab: (tab: string) => void }) {
+  const router = useRouter()
+
+  // Function to handle tab changes
+  const handleTabChange = (value: string) => {
+    setActiveTab(value)
+    router.push(`/dashboard?tab=${value}`, { scroll: false })
+  }
+
+  return (
+    <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
+      <TabsList className="grid grid-cols-4 mb-8 bg-muted/50 dark:bg-gray-800/50">
+        <TabsTrigger value="bookings" className="data-[state=active]:bg-background dark:data-[state=active]:bg-gray-700 dark:text-gray-200 dark:data-[state=active]:text-white">Bookings</TabsTrigger>
+        <TabsTrigger value="availability" className="data-[state=active]:bg-background dark:data-[state=active]:bg-gray-700 dark:text-gray-200 dark:data-[state=active]:text-white">Availability</TabsTrigger>
+        <TabsTrigger value="profile" className="data-[state=active]:bg-background dark:data-[state=active]:bg-gray-700 dark:text-gray-200 dark:data-[state=active]:text-white">Profile</TabsTrigger>
+        <TabsTrigger value="skills" className="data-[state=active]:bg-background dark:data-[state=active]:bg-gray-700 dark:text-gray-200 dark:data-[state=active]:text-white">Skills</TabsTrigger>
+      </TabsList>
+
+      <TabsContent value="bookings">
+        <BookingsList user={user} />
+      </TabsContent>
+
+      <TabsContent value="availability">
+        <AvailabilityCalendar user={user} />
+      </TabsContent>
+
+      <TabsContent value="profile">
+        <ProfileSection user={user} onProfileUpdate={() => {}} />
+      </TabsContent>
+
+      <TabsContent value="skills">
+        <SkillsSection user={user} />
+      </TabsContent>
+    </Tabs>
+  )
+}
+
+// Component that uses useSearchParams (needs Suspense boundary)
+function TabSelector({ setActiveTab }: { setActiveTab: (tab: string) => void }) {
   const searchParams = useSearchParams()
   const tabParam = searchParams.get('tab')
   const validTabs = ['bookings', 'availability', 'profile', 'skills']
   
+  // Update active tab based on URL parameter
+  useEffect(() => {
+    if (tabParam && validTabs.includes(tabParam)) {
+      setActiveTab(tabParam)
+    }
+  }, [tabParam, setActiveTab])
+  
+  return null
+}
+
+export default function DashboardPage() {
   const [user, setUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState(validTabs.includes(tabParam as string) ? tabParam as string : "bookings")
+  const [activeTab, setActiveTab] = useState("bookings")
   const router = useRouter()
   const { toast } = useToast()
   const supabase = createClientComponentClient()
@@ -68,22 +119,16 @@ export default function DashboardPage() {
     }
   }, [supabase, router, toast])
 
-  // Load user data on initial page load
-  useEffect(() => {
-    fetchUserData()
-  }, [fetchUserData])
-  
-  // Update URL when tab changes
-  const handleTabChange = (value: string) => {
-    setActiveTab(value)
-    router.push(`/dashboard?tab=${value}`, { scroll: false })
-  }
-
   // Function to handle profile updates
   const handleProfileUpdate = useCallback(() => {
     console.log("Dashboard: handleProfileUpdate called - refreshing user data");
     fetchUserData();
   }, [fetchUserData]);
+
+  // Load user data on initial page load
+  useEffect(() => {
+    fetchUserData()
+  }, [fetchUserData])
 
   if (loading) {
     return (
@@ -102,34 +147,19 @@ export default function DashboardPage() {
       <Navbar />
       <main className="flex-grow container mx-auto px-4 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-          <DashboardSidebar user={user} activeTab={activeTab} setActiveTab={handleTabChange} />
+          <DashboardSidebar user={user} activeTab={activeTab} setActiveTab={setActiveTab} />
 
           <div className="lg:col-span-3">
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-              <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-                <TabsList className="grid grid-cols-4 mb-8 bg-muted/50 dark:bg-gray-800/50">
-                  <TabsTrigger value="bookings" className="data-[state=active]:bg-background dark:data-[state=active]:bg-gray-700 dark:text-gray-200 dark:data-[state=active]:text-white">Bookings</TabsTrigger>
-                  <TabsTrigger value="availability" className="data-[state=active]:bg-background dark:data-[state=active]:bg-gray-700 dark:text-gray-200 dark:data-[state=active]:text-white">Availability</TabsTrigger>
-                  <TabsTrigger value="profile" className="data-[state=active]:bg-background dark:data-[state=active]:bg-gray-700 dark:text-gray-200 dark:data-[state=active]:text-white">Profile</TabsTrigger>
-                  <TabsTrigger value="skills" className="data-[state=active]:bg-background dark:data-[state=active]:bg-gray-700 dark:text-gray-200 dark:data-[state=active]:text-white">Skills</TabsTrigger>
-                </TabsList>
-
-                <TabsContent value="bookings">
-                  <BookingsList user={user} />
-                </TabsContent>
-
-                <TabsContent value="availability">
-                  <AvailabilityCalendar user={user} />
-                </TabsContent>
-
-                <TabsContent value="profile">
-                  <ProfileSection user={user} onProfileUpdate={handleProfileUpdate} />
-                </TabsContent>
-
-                <TabsContent value="skills">
-                  <SkillsSection user={user} />
-                </TabsContent>
-              </Tabs>
+              {/* Suspense boundary for the component that uses useSearchParams */}
+              <Suspense fallback={<div>Loading tabs...</div>}>
+                <TabSelector setActiveTab={setActiveTab} />
+              </Suspense>
+              <DashboardTabs 
+                user={user} 
+                activeTab={activeTab} 
+                setActiveTab={setActiveTab} 
+              />
             </motion.div>
           </div>
         </div>
