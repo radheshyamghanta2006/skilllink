@@ -268,12 +268,12 @@ export default function ExplorePage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col bg-white dark:bg-gray-950 transition-colors duration-300">
       <Navbar />
       <main className="flex-grow">
-        <section className="bg-gradient-to-r from-purple-100 to-blue-100 py-12">
+        <section className="bg-gradient-to-r from-purple-100 to-blue-100 dark:from-purple-900/20 dark:to-blue-900/30 py-12 transition-colors duration-300">
           <div className="container mx-auto px-4">
-            <h1 className="text-3xl font-bold mb-6 text-center">Explore Skills</h1>
+            <h1 className="text-3xl font-bold mb-6 text-center text-gray-800 dark:text-gray-100">Explore Skills</h1>
             <form onSubmit={handleSearch} className="max-w-4xl mx-auto">
               <div className="flex flex-col md:flex-row gap-4 mb-6">
                 <div className="flex-1 relative">
@@ -283,7 +283,7 @@ export default function ExplorePage() {
                     placeholder="What skill are you looking for?"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10"
+                    className="pl-10 bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700"
                   />
                 </div>
                 <div className="flex-1 relative">
@@ -293,12 +293,12 @@ export default function ExplorePage() {
                     placeholder="Location"
                     value={location}
                     onChange={(e) => setLocation(e.target.value)}
-                    className="pl-10"
+                    className="pl-10 bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700"
                   />
                 </div>
                 <Button
                   type="submit"
-                  className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+                  className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 dark:from-purple-500 dark:to-blue-500 dark:hover:from-purple-600 dark:hover:to-blue-600 text-white"
                 >
                   Search
                 </Button>
@@ -310,17 +310,17 @@ export default function ExplorePage() {
         <section className="py-12 container mx-auto px-4">
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
             <div className="lg:col-span-1">
-              <div className="bg-white p-6 rounded-lg shadow-md sticky top-24">
-                <h2 className="text-xl font-semibold mb-4">Filters</h2>
+              <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md sticky top-24 border border-gray-100 dark:border-gray-700 transition-colors duration-300">
+                <h2 className="text-xl font-semibold mb-4 text-gray-800 dark:text-gray-100">Filters</h2>
 
                 <div className="space-y-6">
                   <div>
-                    <Label className="mb-2 block">Category</Label>
+                    <Label className="mb-2 block text-gray-700 dark:text-gray-300">Category</Label>
                     <Select value={category} onValueChange={setCategory}>
-                      <SelectTrigger>
+                      <SelectTrigger className="border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
                         <SelectValue placeholder="Select category" />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
                         <SelectItem value="all">All Categories</SelectItem>
                         <SelectItem value="Education">Education</SelectItem>
                         <SelectItem value="Technology">Technology</SelectItem>
@@ -336,12 +336,12 @@ export default function ExplorePage() {
                   </div>
 
                   <div>
-                    <Label className="mb-2 block">Skill Type</Label>
+                    <Label className="mb-2 block text-gray-700 dark:text-gray-300">Skill Type</Label>
                     <Select value={intentFilter} onValueChange={setIntentFilter}>
-                      <SelectTrigger>
+                      <SelectTrigger className="border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
                         <SelectValue placeholder="Select skill type" />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
                         <SelectItem value="all">All Skills</SelectItem>
                         <SelectItem value="provider">Skills People Provide</SelectItem>
                         <SelectItem value="seeker">Skills People Want to Learn</SelectItem>
@@ -350,13 +350,13 @@ export default function ExplorePage() {
                   </div>
 
                   <div>
-                    <Label className="mb-2 block">Distance (km)</Label>
+                    <Label className="mb-2 block text-gray-700 dark:text-gray-300">Distance (km)</Label>
                     <Slider value={distance} min={1} max={50} step={1} onValueChange={setDistance} className="my-4" />
-                    <div className="text-sm text-gray-500 text-right">{distance[0]} km</div>
+                    <div className="text-sm text-gray-500 dark:text-gray-400 text-right">{distance[0]} km</div>
                   </div>
 
                   <div>
-                    <Label className="mb-2 block">Minimum Rating</Label>
+                    <Label className="mb-2 block text-gray-700 dark:text-gray-300">Minimum Rating</Label>
                     <div className="flex items-center gap-2">
                       {[1, 2, 3, 4, 5].map((rating) => (
                         <Button
@@ -364,7 +364,7 @@ export default function ExplorePage() {
                           type="button"
                           variant={minRating >= rating ? "default" : "outline"}
                           size="sm"
-                          className={minRating >= rating ? "bg-yellow-500 hover:bg-yellow-600" : ""}
+                          className={minRating >= rating ? "bg-yellow-500 hover:bg-yellow-600 dark:bg-yellow-600 dark:hover:bg-yellow-700" : "border-gray-200 dark:border-gray-700"}
                           onClick={() => setMinRating(rating)}
                         >
                           <Star className={`h-4 w-4 ${minRating >= rating ? "fill-white" : "fill-none"}`} />
@@ -379,8 +379,9 @@ export default function ExplorePage() {
                         id="available-now"
                         checked={availableNow}
                         onCheckedChange={(checked) => setAvailableNow(checked as boolean)}
+                        className="border-gray-300 dark:border-gray-600"
                       />
-                      <Label htmlFor="available-now" className="flex items-center">
+                      <Label htmlFor="available-now" className="flex items-center text-gray-700 dark:text-gray-300">
                         <Clock className="mr-1 h-4 w-4" /> Available Now
                       </Label>
                     </div>
@@ -390,8 +391,9 @@ export default function ExplorePage() {
                         id="skill-swap"
                         checked={skillSwap}
                         onCheckedChange={(checked) => setSkillSwap(checked as boolean)}
+                        className="border-gray-300 dark:border-gray-600"
                       />
-                      <Label htmlFor="skill-swap" className="flex items-center">
+                      <Label htmlFor="skill-swap" className="flex items-center text-gray-700 dark:text-gray-300">
                         <RefreshCw className="mr-1 h-4 w-4" /> Open to Skill Swap
                       </Label>
                     </div>
@@ -399,7 +401,7 @@ export default function ExplorePage() {
 
                   <Button
                     onClick={() => fetchSkills()}
-                    className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+                    className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 dark:from-purple-500 dark:to-blue-500 dark:hover:from-purple-600 dark:hover:to-blue-600 text-white"
                   >
                     Apply Filters
                   </Button>
@@ -410,7 +412,7 @@ export default function ExplorePage() {
             <div className="lg:col-span-3">
               {loading ? (
                 <div className="flex justify-center items-center h-64">
-                  <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-600"></div>
+                  <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-600 dark:border-purple-500"></div>
                 </div>
               ) : skills.length > 0 ? (
                 <>
@@ -422,43 +424,43 @@ export default function ExplorePage() {
                   >
                     {skills.map((skill) => (
                       <motion.div key={skill.id} variants={itemVariants}>
-                        <Card className="h-full flex flex-col hover:shadow-lg transition-shadow">
+                        <Card className="h-full flex flex-col hover:shadow-lg transition-shadow bg-white dark:bg-gray-800 border-gray-100 dark:border-gray-700">
                           <CardHeader>
-                            <CardTitle className="flex items-center justify-between">
+                            <CardTitle className="flex items-center justify-between text-gray-800 dark:text-gray-100">
                               <span className="truncate">{skill.skill_name}</span>
                               <Badge 
                                 className={
                                   skill.intent === "provider" 
-                                    ? "bg-blue-100 text-blue-800" 
-                                    : "bg-purple-100 text-purple-800"
+                                    ? "bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300" 
+                                    : "bg-purple-100 text-purple-800 dark:bg-purple-900/50 dark:text-purple-300"
                                 }
                               >
                                 {skill.intent === "provider" ? "Provider" : "Seeking"}
                               </Badge>
                             </CardTitle>
-                            <CardDescription className="flex items-center gap-2">
-                              <Badge className="bg-gray-100 text-gray-800">{skill.category}</Badge>
+                            <CardDescription className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
+                              <Badge className="bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300">{skill.category}</Badge>
                               {skill.available_now && (
-                                <Badge className="bg-green-100 text-green-800">Available Now</Badge>
+                                <Badge className="bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300">Available Now</Badge>
                               )}
                               {skill.open_to_skill_swap && (
-                                <Badge className="bg-orange-100 text-orange-800">Skill Swap</Badge>
+                                <Badge className="bg-orange-100 text-orange-800 dark:bg-orange-900/50 dark:text-orange-300">Skill Swap</Badge>
                               )}
                             </CardDescription>
                           </CardHeader>
                           <CardContent className="flex-grow">
-                            <div className="mb-3 text-sm text-gray-600">
+                            <div className="mb-3 text-sm text-gray-600 dark:text-gray-300">
                               {skill.description || "No description provided"}
                             </div>
                             
                             <div className="flex items-center mt-4">
-                              <Avatar className="h-8 w-8 mr-2">
+                              <Avatar className="h-8 w-8 mr-2 border border-gray-200 dark:border-gray-700">
                                 <AvatarImage src={skill.user?.profile_image || "/placeholder-user.jpg"} alt={skill.user?.name || "User"} />
-                                <AvatarFallback>{skill.user?.name?.charAt(0) || "U"}</AvatarFallback>
+                                <AvatarFallback className="bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">{skill.user?.name?.charAt(0) || "U"}</AvatarFallback>
                               </Avatar>
                               <div>
-                                <div className="font-medium">{skill.user?.name || "Anonymous"}</div>
-                                <div className="text-xs text-gray-500 flex items-center">
+                                <div className="font-medium text-gray-800 dark:text-gray-100">{skill.user?.name || "Anonymous"}</div>
+                                <div className="text-xs text-gray-500 dark:text-gray-400 flex items-center">
                                   {skill.user?.location && (
                                     <>
                                       <MapPin className="h-3 w-3 mr-1" />
@@ -474,16 +476,16 @@ export default function ExplorePage() {
                                 <Star
                                   key={star}
                                   className={`h-4 w-4 ${
-                                    star <= (skill.rating || 0) ? "text-yellow-500 fill-yellow-500" : "text-gray-300"
+                                    star <= (skill.rating || 0) ? "text-yellow-500 fill-yellow-500" : "text-gray-300 dark:text-gray-600"
                                   }`}
                                 />
                               ))}
-                              <span className="text-xs text-gray-500 ml-1">({skill.rating || 0})</span>
+                              <span className="text-xs text-gray-500 dark:text-gray-400 ml-1">({skill.rating || 0})</span>
                             </div>
                           </CardContent>
                           <CardFooter>
                             <Button 
-                              className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+                              className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 dark:from-purple-500 dark:to-blue-500 dark:hover:from-purple-600 dark:hover:to-blue-600 text-white"
                               onClick={() => handleViewProfile(skill.user_id)}
                             >
                               View Profile <ArrowRight className="ml-2 h-4 w-4" />
@@ -499,7 +501,7 @@ export default function ExplorePage() {
                       <Button
                         onClick={handleLoadMore}
                         variant="outline"
-                        className="border-purple-300 hover:bg-purple-50"
+                        className="border-purple-300 hover:bg-purple-50 dark:border-purple-700 dark:hover:bg-purple-900/20 dark:text-purple-300"
                       >
                         Load More
                       </Button>
@@ -508,8 +510,8 @@ export default function ExplorePage() {
                 </>
               ) : (
                 <div className="text-center py-12">
-                  <h3 className="text-xl font-medium mb-2">No skills found</h3>
-                  <p className="text-gray-500 mb-6">Try adjusting your search criteria</p>
+                  <h3 className="text-xl font-medium mb-2 text-gray-800 dark:text-gray-100">No skills found</h3>
+                  <p className="text-gray-500 dark:text-gray-400 mb-6">Try adjusting your search criteria</p>
                   <Button
                     onClick={() => {
                       setSearchTerm("")
@@ -522,6 +524,7 @@ export default function ExplorePage() {
                       fetchSkills()
                     }}
                     variant="outline"
+                    className="border-gray-300 dark:border-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
                   >
                     Reset Filters
                   </Button>

@@ -90,7 +90,7 @@ export default function DashboardPage() {
       <div className="min-h-screen flex flex-col">
         <Navbar />
         <main className="flex-grow flex items-center justify-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-600"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-600 dark:border-purple-500"></div>
         </main>
         <Footer />
       </div>
@@ -98,7 +98,7 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col bg-white dark:bg-gray-950 transition-colors duration-300">
       <Navbar />
       <main className="flex-grow container mx-auto px-4 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
@@ -107,11 +107,11 @@ export default function DashboardPage() {
           <div className="lg:col-span-3">
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
               <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-                <TabsList className="grid grid-cols-4 mb-8">
-                  <TabsTrigger value="bookings">Bookings</TabsTrigger>
-                  <TabsTrigger value="availability">Availability</TabsTrigger>
-                  <TabsTrigger value="profile">Profile</TabsTrigger>
-                  <TabsTrigger value="skills">Skills</TabsTrigger>
+                <TabsList className="grid grid-cols-4 mb-8 bg-muted/50 dark:bg-gray-800/50">
+                  <TabsTrigger value="bookings" className="data-[state=active]:bg-background dark:data-[state=active]:bg-gray-700 dark:text-gray-200 dark:data-[state=active]:text-white">Bookings</TabsTrigger>
+                  <TabsTrigger value="availability" className="data-[state=active]:bg-background dark:data-[state=active]:bg-gray-700 dark:text-gray-200 dark:data-[state=active]:text-white">Availability</TabsTrigger>
+                  <TabsTrigger value="profile" className="data-[state=active]:bg-background dark:data-[state=active]:bg-gray-700 dark:text-gray-200 dark:data-[state=active]:text-white">Profile</TabsTrigger>
+                  <TabsTrigger value="skills" className="data-[state=active]:bg-background dark:data-[state=active]:bg-gray-700 dark:text-gray-200 dark:data-[state=active]:text-white">Skills</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="bookings">

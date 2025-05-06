@@ -203,11 +203,6 @@ export function Navbar() {
                 </div>
               )}
 
-              {/* Theme toggle for desktop */}
-              <div className="hidden md:block mr-2">
-                <ThemeToggle />
-              </div>
-
               {/* User dropdown menu */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -255,7 +250,6 @@ export function Navbar() {
             </>
           ) : (
             <div className="hidden md:flex items-center space-x-2">
-              <ThemeToggle />
               <Button
                 variant="ghost"
                 onClick={() => router.push("/login")}
