@@ -131,14 +131,14 @@ export function Hero3D() {
       {/* Text overlay */}
       <div className="absolute inset-0 flex items-center justify-center">
         <div className="text-center z-10 max-w-3xl px-6">
-          <motion.h1 
-            className="text-4xl md:text-6xl font-bold mb-6 bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent"
+            <motion.h1 
+            className="text-4xl md:text-6xl font-bold mb-6 bg-gradient-to-r from-yellow-400 to-red-500 bg-clip-text text-transparent"
             initial={{ y: 50, opacity: 0 }}
             animate={{ y: 0, opacity: isLoaded ? 1 : 0 }}
             transition={{ duration: 0.8, delay: 0.3 }}
-          >
+            >
             Connect with Skilled Professionals
-          </motion.h1>
+            </motion.h1>
           <motion.p 
             className="text-lg md:text-xl mb-8 text-foreground/80"
             initial={{ y: 50, opacity: 0 }}
