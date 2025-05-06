@@ -8,11 +8,6 @@ import { ServiceWorkerRegistration } from "./sw-register"
 
 const inter = Inter({ subsets: ["latin"] })
 
-export const metadata: Metadata = {
-  title: "SkillLink - Hyperlocal Skill Exchange Platform",
-  description: "Connect with local skill providers and seekers",
-    generator: 'v0.dev'
-}
 
 export default function RootLayout({
   children,

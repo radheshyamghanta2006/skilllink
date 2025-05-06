@@ -1,90 +1,235 @@
 "use client"
 
-import { motion } from "framer-motion"
-import { Search, Calendar, CreditCard, Star } from "lucide-react"
-
-const steps = [
-  {
-    icon: <Search className="h-10 w-10" />,
-    title: "Find Skills",
-    description: "Search for skills in your area based on your needs and preferences.",
-    color: "bg-purple-100 text-purple-600",
-  },
-  {
-    icon: <Calendar className="h-10 w-10" />,
-    title: "Book a Session",
-    description: "Choose a convenient time slot and book a session with your selected provider.",
-    color: "bg-blue-100 text-blue-600",
-  },
-  {
-    icon: <CreditCard className="h-10 w-10" />,
-    title: "Pay Securely",
-    description: "Pay online or in-person using our secure payment system.",
-    color: "bg-green-100 text-green-600",
-  },
-  {
-    icon: <Star className="h-10 w-10" />,
-    title: "Leave a Review",
-    description: "Share your experience and help others find great skill providers.",
-    color: "bg-yellow-100 text-yellow-600",
-  },
-]
+import { useState, useEffect } from "react"
+import Image from "next/image"
+import { motion, AnimatePresence } from "framer-motion"
+import { SearchIcon, Calendar, RefreshCw, Star } from "lucide-react"
 
 export function HowItWorks() {
+  const [activeTab, setActiveTab] = useState(0)
+  const [isClient, setIsClient] = useState(false)
+
+  // Handle SSR rendering of animations
+  useEffect(() => {
+    setIsClient(true)
+  }, [])
+
+  const steps = [
+    {
+      icon: <SearchIcon className="h-6 w-6" />,
+      title: "Find a Skill",
+      description: "Browse our extensive catalog of skills offered by professionals in your area. Filter by category, rating, and availability.",
+      image: "/placeholder.svg?height=300&width=400",
+      color: "from-blue-500 to-blue-600",
+      darkColor: "dark:from-blue-400 dark:to-blue-500",
+      bgColor: "bg-blue-50 dark:bg-blue-950/30"
+    },
+    {
+      icon: <Calendar className="h-6 w-6" />,
+      title: "Book a Session",
+      description: "Choose a time that works for you and book directly through our platform. Secure, easy, and instant confirmation.",
+      image: "/placeholder.svg?height=300&width=400",
+      color: "from-purple-500 to-purple-600",
+      darkColor: "dark:from-purple-400 dark:to-purple-500",
+      bgColor: "bg-purple-50 dark:bg-purple-950/30"
+    },
+    {
+      icon: <RefreshCw className="h-6 w-6" />,
+      title: "Swap Skills",
+      description: "Exchange your expertise with others. Learn something new while teaching what you know best.",
+      image: "/placeholder.svg?height=300&width=400",
+      color: "from-emerald-500 to-emerald-600",
+      darkColor: "dark:from-emerald-400 dark:to-emerald-500",
+      bgColor: "bg-emerald-50 dark:bg-emerald-950/30"
+    },
+    {
+      icon: <Star className="h-6 w-6" />,
+      title: "Leave a Review",
+      description: "Share your experience with the community. Help others find the best skill providers in town.",
+      image: "/placeholder.svg?height=300&width=400",
+      color: "from-amber-500 to-amber-600",
+      darkColor: "dark:from-amber-400 dark:to-amber-500",
+      bgColor: "bg-amber-50 dark:bg-amber-950/30"
+    }
+  ]
+
   const containerVariants = {
     hidden: { opacity: 0 },
     visible: {
       opacity: 1,
       transition: {
-        staggerChildren: 0.2,
+        staggerChildren: 0.1,
       },
     },
   }
 
   const itemVariants = {
-    hidden: { y: 20, opacity: 0 },
+    hidden: { opacity: 0, y: 20 },
     visible: {
+      opacity: 1, 
       y: 0,
-      opacity: 1,
+      transition: { duration: 0.5, ease: "easeOut" }
     },
   }
 
-  return (
-    <section className="py-16 bg-gray-50">
-      <div className="container mx-auto px-4">
-        <div className="text-center mb-12">
-          <h2 className="text-3xl font-bold mb-4">How SkillLink Works</h2>
-          <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-            Our platform makes it easy to connect with skilled individuals in your community
-          </p>
-        </div>
+  const contentVariants = {
+    hidden: { opacity: 0, x: -20 },
+    visible: { opacity: 1, x: 0, transition: { duration: 0.5 } },
+    exit: { opacity: 0, x: 20, transition: { duration: 0.3 } }
+  }
 
+  return (
+    <section id="how-it-works" className="py-20 bg-gradient-to-br from-purple-50 to-blue-50 dark:from-gray-900 dark:to-gray-800 transition-colors duration-300 relative overflow-hidden">
+      {/* Decorative elements */}
+      <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-purple-600 to-blue-600 dark:from-purple-500 dark:to-blue-500"></div>
+      <div className="absolute top-10 right-10 h-32 w-32 bg-purple-200 dark:bg-purple-900/20 rounded-full blur-3xl opacity-40 pointer-events-none"></div>
+      <div className="absolute bottom-10 left-10 h-48 w-48 bg-blue-200 dark:bg-blue-900/20 rounded-full blur-3xl opacity-40 pointer-events-none"></div>
+      
+      <div className="container mx-auto px-4 relative z-10">
         <motion.div
-          variants={containerVariants}
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true, margin: "-100px" }}
-          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8"
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+          viewport={{ once: true }}
+          className="text-center mb-16"
         >
-          {steps.map((step, index) => (
-            <motion.div key={step.title} variants={itemVariants}>
-              <div className="flex flex-col items-center text-center">
-                <div className="relative mb-6">
-                  <div className={`${step.color} p-5 rounded-full`}>{step.icon}</div>
-                  <div className="absolute top-0 right-0 -mr-3 -mt-3 bg-white rounded-full border-2 border-purple-600 w-8 h-8 flex items-center justify-center font-bold text-purple-600">
-                    {index + 1}
-                  </div>
-                </div>
-                <h3 className="text-xl font-semibold mb-3">{step.title}</h3>
-                <p className="text-gray-600">{step.description}</p>
-              </div>
-            </motion.div>
-          ))}
+          <h2 className="text-3xl md:text-4xl font-bold mb-4 bg-gradient-to-r from-purple-600 to-blue-600 dark:from-purple-400 dark:to-blue-400 bg-clip-text text-transparent">
+            How SkillLink Works
+          </h2>
+          <p className="text-lg text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
+            Connect with skilled professionals or offer your expertise in a few simple steps
+          </p>
+          <div className="h-1 w-20 bg-gradient-to-r from-purple-500 to-blue-500 dark:from-purple-400 dark:to-blue-400 mx-auto mt-6 rounded-full"></div>
         </motion.div>
 
-        {/* Connecting lines between steps (visible on desktop) */}
-        <div className="hidden lg:block relative h-0">
-          <div className="absolute top-[-120px] left-[25%] w-[50%] border-t-2 border-dashed border-gray-300"></div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+          {/* Tabs and content for larger screens */}
+          <div className="hidden lg:block">
+            {isClient && (
+              <AnimatePresence mode="wait">
+                <motion.div 
+                  key={activeTab}
+                  initial="hidden"
+                  animate="visible"
+                  exit="exit"
+                  variants={contentVariants}
+                  className={`relative bg-white dark:bg-gray-800 rounded-2xl shadow-xl overflow-hidden border border-gray-100 dark:border-gray-700 transition-colors duration-300 ${steps[activeTab].bgColor}`}
+                >
+                  <div className="aspect-w-4 aspect-h-3 relative">
+                    <Image 
+                      src={steps[activeTab].image} 
+                      alt={steps[activeTab].title} 
+                      fill 
+                      className="object-cover"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex items-end">
+                      <div className="p-6 text-white">
+                        <div className={`inline-flex items-center justify-center h-14 w-14 rounded-full bg-gradient-to-r ${steps[activeTab].color} ${steps[activeTab].darkColor} mb-4 shadow-lg`}>
+                          {steps[activeTab].icon}
+                        </div>
+                        <h3 className="text-2xl font-bold">{steps[activeTab].title}</h3>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="p-8">
+                    <p className="text-gray-600 dark:text-gray-300 text-lg">
+                      {steps[activeTab].description}
+                    </p>
+                  </div>
+                </motion.div>
+              </AnimatePresence>
+            )}
+          </div>
+
+          {/* Step indicators */}
+          <div>
+            <motion.div
+              variants={containerVariants}
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true }}
+              className="space-y-6"
+            >
+              {steps.map((step, index) => (
+                <motion.div
+                  key={index}
+                  variants={itemVariants}
+                  whileHover={{ x: 5 }}
+                  whileTap={{ scale: 0.98 }}
+                  className={`
+                    flex cursor-pointer p-5 rounded-xl 
+                    ${index === activeTab 
+                      ? `bg-white dark:bg-gray-800 shadow-md border border-gray-100 dark:border-gray-700 ${step.bgColor}` 
+                      : "hover:bg-white/60 dark:hover:bg-gray-800/50"
+                    }
+                    transition-all duration-300
+                  `}
+                  onClick={() => setActiveTab(index)}
+                  role="button"
+                  tabIndex={0}
+                  aria-selected={index === activeTab}
+                >
+                  <div className={`
+                    h-14 w-14 rounded-full flex items-center justify-center flex-shrink-0 mr-5 shadow-md
+                    transition-all duration-300
+                    ${index === activeTab 
+                      ? `bg-gradient-to-r ${step.color} ${step.darkColor} text-white` 
+                      : "bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400"
+                    }
+                  `}>
+                    {step.icon}
+                  </div>
+                  <div className="flex-grow">
+                    <h3 className={`font-bold text-lg mb-1 transition-colors duration-300 ${index === activeTab ? "text-gray-800 dark:text-gray-100" : "text-gray-700 dark:text-gray-300"}`}>
+                      {step.title}
+                    </h3>
+                    <p className={`${index === activeTab ? "text-gray-600 dark:text-gray-300" : "text-gray-500 dark:text-gray-400"} lg:hidden`}>
+                      {step.description}
+                    </p>
+                  </div>
+                  <div className="ml-auto flex items-start">
+                    <div className={`
+                      h-7 w-7 rounded-full flex items-center justify-center border-2 text-sm font-bold transition-all duration-300
+                      ${index === activeTab 
+                        ? "border-purple-600 dark:border-purple-400 bg-purple-600 dark:bg-purple-400 text-white scale-110" 
+                        : "border-gray-300 dark:border-gray-600 text-gray-400 dark:text-gray-500"
+                      }
+                    `}>
+                      {index + 1}
+                    </div>
+                  </div>
+                </motion.div>
+              ))}
+            </motion.div>
+          </div>
+          
+          {/* Mobile view */}
+          <div className="lg:hidden space-y-6">
+            {steps.map((step, index) => (
+              <motion.div 
+                key={index} 
+                variants={itemVariants}
+                initial="hidden"
+                whileInView="visible"
+                viewport={{ once: true, margin: "-50px" }}
+                whileHover={{ y: -5 }}
+                className={`bg-white dark:bg-gray-800 rounded-xl shadow-md p-6 border border-gray-100 dark:border-gray-700 ${step.bgColor}`}
+              >
+                <div className="flex items-start mb-4">
+                  <div className={`h-12 w-12 rounded-full flex items-center justify-center mr-4 bg-gradient-to-r ${step.color} ${step.darkColor} text-white shadow-md`}>
+                    {step.icon}
+                  </div>
+                  <h3 className="text-lg font-bold text-gray-800 dark:text-gray-100">{step.title}</h3>
+                  <div className="ml-auto">
+                    <div className="h-7 w-7 rounded-full flex items-center justify-center border-2 text-sm font-bold border-purple-600 dark:border-purple-400 text-purple-600 dark:text-purple-400">
+                      {index + 1}
+                    </div>
+                  </div>
+                </div>
+                <p className="text-gray-600 dark:text-gray-300">{step.description}</p>
+              </motion.div>
+            ))}
+          </div>
         </div>
       </div>
     </section>

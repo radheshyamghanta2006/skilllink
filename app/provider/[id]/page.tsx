@@ -125,10 +125,10 @@ export default function ProviderPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex flex-col">
+      <div className="min-h-screen flex flex-col dark:bg-gray-900">
         <Navbar />
         <main className="flex-grow flex items-center justify-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-600"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-600 dark:border-purple-400"></div>
         </main>
         <Footer />
       </div>
@@ -137,12 +137,12 @@ export default function ProviderPage() {
 
   if (!provider) {
     return (
-      <div className="min-h-screen flex flex-col">
+      <div className="min-h-screen flex flex-col dark:bg-gray-900">
         <Navbar />
         <main className="flex-grow flex items-center justify-center">
           <div className="text-center">
-            <h2 className="text-2xl font-bold mb-4">Provider not found</h2>
-            <Button onClick={() => router.push("/explore")}>Back to Explore</Button>
+            <h2 className="text-2xl font-bold mb-4 dark:text-white">Provider not found</h2>
+            <Button onClick={() => router.push("/explore")} className="dark:bg-purple-600 dark:hover:bg-purple-700">Back to Explore</Button>
           </div>
         </main>
         <Footer />
@@ -154,16 +154,16 @@ export default function ProviderPage() {
     <div className="min-h-screen flex flex-col">
       <Navbar />
       <main className="flex-grow">
-        <div className="bg-gradient-to-r from-purple-100 to-blue-100 py-12">
+        <div className="bg-gradient-to-r from-purple-100 to-blue-100 dark:from-purple-950/30 dark:to-blue-950/30 py-12">
           <div className="container mx-auto px-4">
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5 }}
-              className="bg-white rounded-xl shadow-lg overflow-hidden"
+              className="bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden"
             >
               <div className="md:flex">
-                <div className="md:w-1/3 p-8 flex flex-col items-center justify-center border-r border-gray-200">
+                <div className="md:w-1/3 p-8 flex flex-col items-center justify-center border-r border-gray-200 dark:border-gray-700">
                   <div className="relative w-40 h-40 rounded-full overflow-hidden mb-4">
                     <Image
                       src={provider.profile_image || "/placeholder.svg?height=160&width=160"}
@@ -172,21 +172,21 @@ export default function ProviderPage() {
                       className="object-cover"
                     />
                   </div>
-                  <h1 className="text-2xl font-bold text-center mb-2">{provider.name}</h1>
+                  <h1 className="text-2xl font-bold text-center mb-2 dark:text-white">{provider.name}</h1>
                   <div className="flex items-center mb-4">
                     <div className="flex">
                       {[1, 2, 3, 4, 5].map((star) => (
                         <Star
                           key={star}
                           className={`h-5 w-5 ${
-                            star <= Math.round(provider.rating) ? "text-yellow-500 fill-yellow-500" : "text-gray-300"
+                            star <= Math.round(provider.rating) ? "text-yellow-500 fill-yellow-500" : "text-gray-300 dark:text-gray-600"
                           }`}
                         />
                       ))}
                     </div>
-                    <span className="ml-2 text-sm text-gray-600">({provider.reviews?.length || 0} reviews)</span>
+                    <span className="ml-2 text-sm text-gray-600 dark:text-gray-400">({provider.reviews?.length || 0} reviews)</span>
                   </div>
-                  <div className="flex items-center text-gray-600 mb-4">
+                  <div className="flex items-center text-gray-600 dark:text-gray-400 mb-4">
                     <MapPin className="h-4 w-4 mr-1" />
                     <span>{provider.location || "Location not specified"}</span>
                   </div>
@@ -194,7 +194,7 @@ export default function ProviderPage() {
                     {provider.skills
                       ?.filter((skill: any) => skill.intent === "provider")
                       .map((skill: any) => (
-                        <Badge key={skill.id} variant="outline" className="bg-purple-50">
+                        <Badge key={skill.id} variant="outline" className="bg-purple-50 dark:bg-purple-900/30 dark:text-purple-200 dark:border-purple-800">
                           {skill.skill_name}
                         </Badge>
                       ))}
@@ -202,14 +202,14 @@ export default function ProviderPage() {
                   <div className="space-y-3 w-full">
                     <Button
                       onClick={() => setIsBookingModalOpen(true)}
-                      className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+                      className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 dark:from-purple-500 dark:to-blue-500"
                       disabled={!isAuthenticated}
                     >
                       <Calendar className="mr-2 h-4 w-4" /> Book a Session
                     </Button>
                     <Button
                       variant="outline"
-                      className="w-full"
+                      className="w-full dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-600"
                       disabled={!isAuthenticated}
                       onClick={() => router.push(`/messages?user=${provider.id}`)}
                     >
@@ -218,7 +218,7 @@ export default function ProviderPage() {
                     {provider.skill_swap && (
                       <Button
                         variant="outline"
-                        className="w-full border-green-300 text-green-700 hover:bg-green-50"
+                        className="w-full border-green-300 text-green-700 hover:bg-green-50 dark:border-green-800 dark:text-green-400 dark:hover:bg-green-900/30"
                         disabled={!isAuthenticated}
                         onClick={() => setIsSkillSwapModalOpen(true)}
                       >
@@ -227,9 +227,9 @@ export default function ProviderPage() {
                     )}
                   </div>
                   {!isAuthenticated && (
-                    <p className="text-sm text-center mt-4 text-gray-500">
+                    <p className="text-sm text-center mt-4 text-gray-500 dark:text-gray-400">
                       Please{" "}
-                      <Button variant="link" className="p-0 h-auto" onClick={() => router.push("/login")}>
+                      <Button variant="link" className="p-0 h-auto dark:text-blue-400" onClick={() => router.push("/login")}>
                         log in
                       </Button>{" "}
                       to book or message
@@ -247,24 +247,24 @@ export default function ProviderPage() {
                     <TabsContent value="about">
                       <div className="space-y-6">
                         <div>
-                          <h2 className="text-xl font-semibold mb-3">About Me</h2>
-                          <p className="text-gray-700">{provider.bio || "This provider hasn't added a bio yet."}</p>
+                          <h2 className="text-xl font-semibold mb-3 dark:text-white">About Me</h2>
+                          <p className="text-gray-700 dark:text-gray-300">{provider.bio || "This provider hasn't added a bio yet."}</p>
                         </div>
 
                         <div>
-                          <h2 className="text-xl font-semibold mb-3">Skills Offered</h2>
+                          <h2 className="text-xl font-semibold mb-3 dark:text-white">Skills Offered</h2>
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             {provider.skills
                               ?.filter((skill: any) => skill.intent === "provider")
                               .map((skill: any) => (
-                                <Card key={skill.id}>
+                                <Card key={skill.id} className="dark:bg-gray-700 dark:border-gray-600">
                                   <CardContent className="p-4">
                                     <div className="flex items-start">
-                                      <Award className="h-5 w-5 mr-2 text-purple-600 mt-0.5" />
+                                      <Award className="h-5 w-5 mr-2 text-purple-600 dark:text-purple-400 mt-0.5" />
                                       <div>
-                                        <h3 className="font-medium">{skill.skill_name}</h3>
-                                        <p className="text-sm text-gray-500">{skill.category}</p>
-                                        {skill.description && <p className="text-sm mt-1">{skill.description}</p>}
+                                        <h3 className="font-medium dark:text-white">{skill.skill_name}</h3>
+                                        <p className="text-sm text-gray-500 dark:text-gray-400">{skill.category}</p>
+                                        {skill.description && <p className="text-sm mt-1 dark:text-gray-300">{skill.description}</p>}
                                       </div>
                                     </div>
                                   </CardContent>
@@ -275,19 +275,19 @@ export default function ProviderPage() {
 
                         {provider.skills?.some((skill: any) => skill.intent === "seeker") && (
                           <div>
-                            <h2 className="text-xl font-semibold mb-3">Skills Seeking</h2>
+                            <h2 className="text-xl font-semibold mb-3 dark:text-white">Skills Seeking</h2>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                               {provider.skills
                                 ?.filter((skill: any) => skill.intent === "seeker")
                                 .map((skill: any) => (
-                                  <Card key={skill.id}>
+                                  <Card key={skill.id} className="dark:bg-gray-700 dark:border-gray-600">
                                     <CardContent className="p-4">
                                       <div className="flex items-start">
-                                        <RefreshCw className="h-5 w-5 mr-2 text-green-600 mt-0.5" />
+                                        <RefreshCw className="h-5 w-5 mr-2 text-green-600 dark:text-green-400 mt-0.5" />
                                         <div>
-                                          <h3 className="font-medium">{skill.skill_name}</h3>
-                                          <p className="text-sm text-gray-500">{skill.category}</p>
-                                          {skill.description && <p className="text-sm mt-1">{skill.description}</p>}
+                                          <h3 className="font-medium dark:text-white">{skill.skill_name}</h3>
+                                          <p className="text-sm text-gray-500 dark:text-gray-400">{skill.category}</p>
+                                          {skill.description && <p className="text-sm mt-1 dark:text-gray-300">{skill.description}</p>}
                                         </div>
                                       </div>
                                     </CardContent>
@@ -300,9 +300,9 @@ export default function ProviderPage() {
                         <div>
                           <h2 className="text-xl font-semibold mb-3">Badges & Achievements</h2>
                           <div className="flex flex-wrap gap-3">
-                            <Badge className="bg-yellow-100 text-yellow-800 hover:bg-yellow-200">Top Rated</Badge>
-                            <Badge className="bg-green-100 text-green-800 hover:bg-green-200">Quick Responder</Badge>
-                            <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-200">Verified</Badge>
+                            <Badge className="bg-yellow-100 text-yellow-800 hover:bg-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-200 dark:border-yellow-800">Top Rated</Badge>
+                            <Badge className="bg-green-100 text-green-800 hover:bg-green-200 dark:bg-green-900/30 dark:text-green-200 dark:border-green-800">Quick Responder</Badge>
+                            <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-200 dark:bg-blue-900/30 dark:text-blue-200 dark:border-blue-800">Verified</Badge>
                           </div>
                         </div>
                       </div>
@@ -311,25 +311,25 @@ export default function ProviderPage() {
                     <TabsContent value="availability">
                       <div className="space-y-6">
                         <div>
-                          <h2 className="text-xl font-semibold mb-3">Available Time Slots</h2>
+                          <h2 className="text-xl font-semibold mb-3 dark:text-white">Available Time Slots</h2>
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             {provider.availability_slots?.filter((slot: any) => slot.is_available).length > 0 ? (
                               provider.availability_slots
                                 ?.filter((slot: any) => slot.is_available)
                                 .map((slot: any) => (
-                                  <Card key={slot.id}>
+                                  <Card key={slot.id} className="dark:bg-gray-700 dark:border-gray-600">
                                     <CardContent className="p-4">
                                       <div className="flex items-start">
-                                        <Calendar className="h-5 w-5 mr-2 text-purple-600 mt-0.5" />
+                                        <Calendar className="h-5 w-5 mr-2 text-purple-600 dark:text-purple-400 mt-0.5" />
                                         <div>
-                                          <h3 className="font-medium">
+                                          <h3 className="font-medium dark:text-white">
                                             {new Date(slot.date).toLocaleDateString("en-US", {
                                               weekday: "long",
                                               month: "short",
                                               day: "numeric",
                                             })}
                                           </h3>
-                                          <div className="flex items-center text-sm text-gray-500">
+                                          <div className="flex items-center text-sm text-gray-500 dark:text-gray-400">
                                             <Clock className="h-4 w-4 mr-1" />
                                             {slot.start_time.substring(0, 5)} - {slot.end_time.substring(0, 5)}
                                           </div>
@@ -339,23 +339,23 @@ export default function ProviderPage() {
                                   </Card>
                                 ))
                             ) : (
-                              <p className="text-gray-500 col-span-2">No available time slots at the moment.</p>
+                              <p className="text-gray-500 dark:text-gray-400 col-span-2">No available time slots at the moment.</p>
                             )}
                           </div>
                         </div>
 
                         <div>
-                          <h2 className="text-xl font-semibold mb-3">Booking Information</h2>
-                          <ul className="space-y-2 text-gray-700">
+                          <h2 className="text-xl font-semibold mb-3 dark:text-white">Booking Information</h2>
+                          <ul className="space-y-2 text-gray-700 dark:text-gray-300">
                             <li className="flex items-start">
-                              <span className="font-medium mr-2">Session Duration:</span> 60 minutes
+                              <span className="font-medium mr-2 dark:text-white">Session Duration:</span> 60 minutes
                             </li>
                             <li className="flex items-start">
-                              <span className="font-medium mr-2">Cancellation Policy:</span> Free cancellation up to 24
+                              <span className="font-medium mr-2 dark:text-white">Cancellation Policy:</span> Free cancellation up to 24
                               hours before the session
                             </li>
                             <li className="flex items-start">
-                              <span className="font-medium mr-2">Location:</span> Online or in-person (within{" "}
+                              <span className="font-medium mr-2 dark:text-white">Location:</span> Online or in-person (within{" "}
                               {provider.distance || 5}km radius)
                             </li>
                           </ul>

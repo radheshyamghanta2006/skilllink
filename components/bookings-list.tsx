@@ -205,13 +205,13 @@ export function BookingsList({ user }: BookingsListProps) {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "pending":
-        return <Badge className="bg-yellow-100 text-yellow-800">Pending</Badge>
+        return <Badge className="bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300">Pending</Badge>
       case "confirmed":
-        return <Badge className="bg-green-100 text-green-800">Confirmed</Badge>
+        return <Badge className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">Confirmed</Badge>
       case "completed":
-        return <Badge className="bg-blue-100 text-blue-800">Completed</Badge>
+        return <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">Completed</Badge>
       case "cancelled":
-        return <Badge className="bg-red-100 text-red-800">Cancelled</Badge>
+        return <Badge className="bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300">Cancelled</Badge>
       default:
         return <Badge>{status}</Badge>
     }
@@ -221,19 +221,19 @@ export function BookingsList({ user }: BookingsListProps) {
     switch (status) {
       case "pending":
         return (
-          <Badge variant="outline" className="border-yellow-300 text-yellow-700">
+          <Badge variant="outline" className="border-yellow-300 text-yellow-700 dark:border-yellow-800 dark:text-yellow-400">
             Payment Pending
           </Badge>
         )
       case "paid":
         return (
-          <Badge variant="outline" className="border-green-300 text-green-700">
+          <Badge variant="outline" className="border-green-300 text-green-700 dark:border-green-800 dark:text-green-400">
             Paid
           </Badge>
         )
       case "refunded":
         return (
-          <Badge variant="outline" className="border-red-300 text-red-700">
+          <Badge variant="outline" className="border-red-300 text-red-700 dark:border-red-800 dark:text-red-400">
             Refunded
           </Badge>
         )
@@ -287,59 +287,59 @@ export function BookingsList({ user }: BookingsListProps) {
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold">Your Bookings</h2>
+        <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100">Your Bookings</h2>
         <Button
           onClick={fetchBookings}
           variant="outline"
           size="sm"
-          className="text-purple-600 border-purple-200 hover:bg-purple-50"
+          className="text-purple-600 dark:text-purple-400 border-purple-200 dark:border-purple-800 hover:bg-purple-50 dark:hover:bg-purple-900/20"
         >
           Refresh
         </Button>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid grid-cols-3 mb-6">
-          <TabsTrigger value="upcoming">Upcoming</TabsTrigger>
-          <TabsTrigger value="past">Past</TabsTrigger>
-          <TabsTrigger value="all">All</TabsTrigger>
+        <TabsList className="grid grid-cols-3 mb-6 bg-muted/50 dark:bg-gray-800/50">
+          <TabsTrigger value="upcoming" className="dark:text-gray-200 dark:data-[state=active]:bg-gray-700 dark:data-[state=active]:text-white">Upcoming</TabsTrigger>
+          <TabsTrigger value="past" className="dark:text-gray-200 dark:data-[state=active]:bg-gray-700 dark:data-[state=active]:text-white">Past</TabsTrigger>
+          <TabsTrigger value="all" className="dark:text-gray-200 dark.data-[state=active]:bg-gray-700 dark.data-[state=active]:text-white">All</TabsTrigger>
         </TabsList>
 
         <TabsContent value={activeTab}>
           {loading ? (
             <div className="flex justify-center items-center h-64">
-              <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-600"></div>
+              <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-600 dark:border-purple-500"></div>
             </div>
           ) : filteredBookings.length > 0 ? (
             <motion.div variants={containerVariants} initial="hidden" animate="visible" className="space-y-4">
               {filteredBookings.map((booking) => (
                 <motion.div key={booking.id} variants={itemVariants}>
-                  <Card>
+                  <Card className="border-gray-200 dark:border-gray-700 dark:bg-gray-800">
                     <CardContent className="p-6">
                       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                         <div className="flex items-start gap-4">
-                          <Avatar className="h-12 w-12">
+                          <Avatar className="h-12 w-12 border border-gray-200 dark:border-gray-700">
                             <AvatarImage
                               src={
                                 user.id === booking.provider_id ? booking.seeker.profile_image : booking.provider.profile_image
                               }
                               alt={user.id === booking.provider_id ? booking.seeker.name : booking.provider.name}
                             />
-                            <AvatarFallback>
+                            <AvatarFallback className="bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
                               {getInitials(user.id === booking.provider_id ? booking.seeker.name : booking.provider.name)}
                             </AvatarFallback>
                           </Avatar>
 
                           <div>
                             <div className="flex flex-wrap items-center gap-2 mb-1">
-                              <h3 className="font-semibold">
+                              <h3 className="font-semibold text-gray-800 dark:text-gray-100">
                                 {user.id === booking.provider_id ? booking.seeker.name : booking.provider.name}
                               </h3>
-                              <span className="text-gray-500">•</span>
-                              <span className="text-sm text-gray-600">{booking.service_name}</span>
+                              <span className="text-gray-500 dark:text-gray-400">•</span>
+                              <span className="text-sm text-gray-600 dark:text-gray-300">{booking.service_name}</span>
                             </div>
 
-                            <div className="flex flex-wrap gap-x-4 gap-y-2 text-sm text-gray-600">
+                            <div className="flex flex-wrap gap-x-4 gap-y-2 text-sm text-gray-600 dark:text-gray-400">
                               <div className="flex items-center">
                                 <Calendar className="h-4 w-4 mr-1" />
                                 {new Date(booking.date).toLocaleDateString("en-US", {
@@ -364,19 +364,53 @@ export function BookingsList({ user }: BookingsListProps) {
                         </div>
 
                         <div className="flex flex-wrap items-center gap-2">
-                          {getStatusBadge(booking.status)}
-                          {getPaymentBadge(booking.payment_status)}
+                          {booking.status === "pending" && (
+                            <Badge className="bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300">
+                              Pending
+                            </Badge>
+                          )}
+                          {booking.status === "confirmed" && (
+                            <Badge className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">
+                              Confirmed
+                            </Badge>
+                          )}
+                          {booking.status === "completed" && (
+                            <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
+                              Completed
+                            </Badge>
+                          )}
+                          {booking.status === "cancelled" && (
+                            <Badge className="bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300">
+                              Cancelled
+                            </Badge>
+                          )}
+                          
+                          {booking.payment_status === "pending" && (
+                            <Badge variant="outline" className="border-yellow-300 text-yellow-700 dark:border-yellow-800 dark:text-yellow-400">
+                              Payment Pending
+                            </Badge>
+                          )}
+                          {booking.payment_status === "paid" && (
+                            <Badge variant="outline" className="border-green-300 text-green-700 dark:border-green-800 dark:text-green-400">
+                              Paid
+                            </Badge>
+                          )}
+                          {booking.payment_status === "refunded" && (
+                            <Badge variant="outline" className="border-red-300 text-red-700 dark:border-red-800 dark:text-red-400">
+                              Refunded
+                            </Badge>
+                          )}
                         </div>
                       </div>
 
-                      <div className="mt-4 pt-4 border-t flex flex-wrap justify-between items-center gap-2">
+                      <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 flex flex-wrap justify-between items-center gap-2">
                         <div className="flex flex-wrap gap-2">
                           {booking.status === "pending" && user.id === booking.provider_id && (
                             <>
                               <Button
                                 size="sm"
                                 onClick={() => handleUpdateStatus(booking.id, "confirmed")}
-                                className="bg-green-600 hover:bg-green-700"
+                                className="bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-800"
                               >
                                 Accept
                               </Button>
@@ -384,7 +418,7 @@ export function BookingsList({ user }: BookingsListProps) {
                                 size="sm"
                                 variant="outline"
                                 onClick={() => handleUpdateStatus(booking.id, "cancelled")}
-                                className="border-red-300 text-red-700 hover:bg-red-50"
+                                className="border-red-300 text-red-700 hover:bg-red-50 dark:border-red-700 dark:text-red-400 dark:hover:bg-red-900/20"
                               >
                                 Decline
                               </Button>
@@ -396,7 +430,7 @@ export function BookingsList({ user }: BookingsListProps) {
                               <Button
                                 size="sm"
                                 onClick={() => handleUpdateStatus(booking.id, "completed")}
-                                className="bg-blue-600 hover:bg-blue-700"
+                                className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-800"
                               >
                                 Mark Completed
                               </Button>
@@ -404,7 +438,7 @@ export function BookingsList({ user }: BookingsListProps) {
                                 size="sm"
                                 variant="outline"
                                 onClick={() => handleUpdateStatus(booking.id, "cancelled")}
-                                className="border-red-300 text-red-700 hover:bg-red-50"
+                                className="border-red-300 text-red-700 hover:bg-red-50 dark:border-red-700 dark:text-red-400 dark:hover:bg-red-900/20"
                               >
                                 Cancel
                               </Button>
@@ -418,7 +452,7 @@ export function BookingsList({ user }: BookingsListProps) {
                                 size="sm"
                                 variant="outline"
                                 onClick={() => handleUpdatePayment(booking.id, "paid")}
-                                className="border-green-300 text-green-700 hover:bg-green-50"
+                                className="border-green-300 text-green-700 hover:bg-green-50 dark:border-green-700 dark:text-green-400 dark:hover:bg-green-900/20"
                               >
                                 <DollarSign className="mr-1 h-4 w-4" />
                                 Mark as Paid
@@ -430,7 +464,7 @@ export function BookingsList({ user }: BookingsListProps) {
                               size="sm"
                               variant="outline"
                               onClick={() => openReviewModal(booking)}
-                              className="border-yellow-300 text-yellow-700 hover:bg-yellow-50"
+                              className="border-yellow-300 text-yellow-700 hover:bg-yellow-50 dark:border-yellow-700 dark:text-yellow-400 dark:hover:bg-yellow-900/20"
                             >
                               <Star className="mr-1 h-4 w-4" />
                               Leave Review
@@ -441,7 +475,7 @@ export function BookingsList({ user }: BookingsListProps) {
                         <Button
                           size="sm"
                           variant="ghost"
-                          className="text-gray-600 hover:text-purple-600 hover:bg-purple-50"
+                          className="text-gray-600 hover:text-purple-600 hover:bg-purple-50 dark:text-gray-300 dark:hover:text-purple-400 dark:hover:bg-purple-900/20"
                           onClick={() => handleMessageClick(booking)}
                         >
                           <MessageSquare className="mr-1 h-4 w-4" />
@@ -454,9 +488,9 @@ export function BookingsList({ user }: BookingsListProps) {
               ))}
             </motion.div>
           ) : (
-            <div className="text-center py-12 bg-gray-50 rounded-lg">
-              <h3 className="text-xl font-medium mb-2">No bookings found</h3>
-              <p className="text-gray-500 mb-6">
+            <div className="text-center py-12 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
+              <h3 className="text-xl font-medium mb-2 text-gray-800 dark:text-gray-100">No bookings found</h3>
+              <p className="text-gray-500 dark:text-gray-400 mb-6">
                 {activeTab === "upcoming"
                   ? "You don't have any upcoming bookings."
                   : activeTab === "past"
@@ -466,7 +500,7 @@ export function BookingsList({ user }: BookingsListProps) {
               {user.role !== "seeker" && (
                 <Button
                   variant="outline"
-                  className="border-purple-300 text-purple-700 hover:bg-purple-50"
+                  className="border-purple-300 text-purple-700 hover:bg-purple-50 dark:border-purple-700 dark:text-purple-400 dark:hover:bg-purple-900/20"
                   onClick={() => setActiveTab("all")}
                 >
                   View All Bookings
