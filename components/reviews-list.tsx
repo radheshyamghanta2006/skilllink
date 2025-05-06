@@ -24,7 +24,17 @@ export function ReviewsList({ reviews }: ReviewsListProps) {
       .toUpperCase()
   }
 
-  if (!reviews || reviews.length === 0) {
+  // Safe guard against undefined reviews
+  if (!reviews) {
+    return (
+      <div className="text-center py-12">
+        <h3 className="text-xl font-medium mb-2">No Reviews Available</h3>
+        <p className="text-gray-500">Reviews could not be loaded at this time.</p>
+      </div>
+    )
+  }
+
+  if (reviews.length === 0) {
     return (
       <div className="text-center py-12">
         <h3 className="text-xl font-medium mb-2">No Reviews Yet</h3>
@@ -50,14 +60,16 @@ export function ReviewsList({ reviews }: ReviewsListProps) {
                 </span>
               </div>
               <div className="flex mt-1 mb-2">
-                {[1, 2, 3, 4, 5].map((star) => (
+                {Array.from({ length: 5 }).map((_, star) => (
                   <Star
                     key={star}
-                    className={`h-4 w-4 ${star <= review.rating ? "text-yellow-500 fill-yellow-500" : "text-gray-300"}`}
+                    className={`h-4 w-4 ${
+                      star < (review.rating || 0) ? "text-yellow-500 fill-yellow-500" : "text-gray-300"
+                    }`}
                   />
                 ))}
               </div>
-              <p className="text-gray-700">{review.comment}</p>
+              <p className="text-gray-700 dark:text-gray-300">{review.comment}</p>
             </div>
           </div>
         </div>
@@ -65,7 +77,7 @@ export function ReviewsList({ reviews }: ReviewsListProps) {
 
       {reviews.length > visibleReviews && (
         <div className="text-center">
-          <Button onClick={handleLoadMore} variant="outline" className="border-purple-300 hover:bg-purple-50">
+          <Button variant="outline" onClick={handleLoadMore}>
             Load More Reviews
           </Button>
         </div>
