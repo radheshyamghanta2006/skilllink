@@ -15,6 +15,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 import { useToast } from "@/components/ui/use-toast"
+import { useRouter, useSearchParams } from "next/navigation"
 
 
 // Create a separate client component that uses useSearchParams
@@ -270,11 +271,8 @@ export default function DashboardPage() {
     )
   }
 
-  // Function to handle tab changes
-  const handleTabChange = (value: string) => {
-    setActiveTab(value);
-    router.push(`/dashboard?tab=${value}`, { scroll: false });
-  };
+  
+  // Removed duplicate declaration of handleTabChange
 
   return (
     <div className="min-h-screen flex flex-col bg-white dark:bg-gray-950 transition-colors duration-300">
