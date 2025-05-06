@@ -1,7 +1,9 @@
 "use client"
 
-import { useState, useEffect, useCallback, Suspense } from "react"
-import { useRouter } from "next/navigation"
+
+import { useState, useEffect, useCallback, useRef } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
+
 import { motion } from "framer-motion"
 import { Navbar } from "@/components/navbar"
 import { Footer } from "@/components/footer"
@@ -10,7 +12,10 @@ import { BookingsList } from "@/components/bookings-list"
 import { AvailabilityCalendar } from "@/components/availability-calendar"
 import { ProfileSection } from "@/components/profile-section"
 import { SkillsSection } from "@/components/skills-section"
+import { NotificationsList } from "@/components/notifications-list"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 import { useToast } from "@/components/ui/use-toast"
 import { useSearchParams } from "next/navigation"
@@ -57,7 +62,7 @@ function DashboardTabs({ user, activeTab, setActiveTab }: { user: any; activeTab
 function TabSelector({ setActiveTab }: { setActiveTab: (tab: string) => void }) {
   const searchParams = useSearchParams()
   const tabParam = searchParams.get('tab')
-  const validTabs = ['bookings', 'availability', 'profile', 'skills']
+  const validTabs = ['bookings', 'availability', 'profile', 'skills', 'notifications']
   
   // Update active tab based on URL parameter
   useEffect(() => {
@@ -72,10 +77,15 @@ function TabSelector({ setActiveTab }: { setActiveTab: (tab: string) => void }) 
 export default function DashboardPage() {
   const [user, setUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState("bookings")
+
+  const [activeTab, setActiveTab] = useState(validTabs.includes(tabParam as string) ? tabParam as string : "bookings")
+  const [notifications, setNotifications] = useState<any[]>([])
+  const [unreadCount, setUnreadCount] = useState(0)
+
   const router = useRouter()
   const { toast } = useToast()
   const supabase = createClientComponentClient()
+  const bookingsListRef = useRef<any>(null);
 
   // Function to fetch user data
   const fetchUserData = useCallback(async () => {
@@ -125,10 +135,88 @@ export default function DashboardPage() {
     fetchUserData();
   }, [fetchUserData]);
 
-  // Load user data on initial page load
+
+  const fetchBookings = () => {
+    // Trigger refresh in BookingsList component if it exists
+    if (bookingsListRef.current?.fetchBookings) {
+      bookingsListRef.current.fetchBookings();
+    }
+  }
+
   useEffect(() => {
-    fetchUserData()
-  }, [fetchUserData])
+    if (!user) return
+
+    // Subscribe to notifications
+    const notificationsChannel = supabase
+      .channel('notifications_channel')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'notifications',
+          filter: `user_id=eq.${user.id}`,
+        },
+        (payload) => {
+          // Add new notification to state
+          setNotifications(prev => [payload.new, ...prev])
+          // Increment unread count
+          setUnreadCount(prev => prev + 1)
+          
+          // Show toast notification
+          toast({
+            title: payload.new.title,
+            description: payload.new.message,
+          })
+
+          // If the notification is about a booking, refresh the bookings list
+          if (payload.new.data?.booking_id) {
+            // Trigger bookings refresh in BookingsList component
+            if (activeTab === "bookings") {
+              fetchBookings()
+            }
+          }
+        }
+      )
+      .subscribe()
+
+    // Fetch existing notifications
+    const fetchNotifications = async () => {
+      const { data: notifs, error } = await supabase
+        .from('notifications')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(50)
+
+      if (!error && notifs) {
+        setNotifications(notifs)
+        setUnreadCount(notifs.filter(n => !n.is_read).length)
+      }
+    }
+
+    fetchNotifications()
+
+    // Cleanup subscription
+    return () => {
+      supabase.removeChannel(notificationsChannel)
+    }
+  }, [user])
+
+  const markNotificationAsRead = async (notificationId: string) => {
+    const { error } = await supabase
+      .from('notifications')
+      .update({ is_read: true })
+      .eq('id', notificationId)
+
+    if (!error) {
+      setNotifications(notifications.map(n => 
+        n.id === notificationId ? { ...n, is_read: true } : n
+      ))
+      setUnreadCount(prev => Math.max(0, prev - 1))
+    }
+  }
+
 
   if (loading) {
     return (
@@ -147,19 +235,90 @@ export default function DashboardPage() {
       <Navbar />
       <main className="flex-grow container mx-auto px-4 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-          <DashboardSidebar user={user} activeTab={activeTab} setActiveTab={setActiveTab} />
+
+          <DashboardSidebar 
+            user={user} 
+            activeTab={activeTab} 
+            setActiveTab={handleTabChange} 
+            unreadCount={unreadCount} 
+          />
 
           <div className="lg:col-span-3">
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-              {/* Suspense boundary for the component that uses useSearchParams */}
-              <Suspense fallback={<div>Loading tabs...</div>}>
-                <TabSelector setActiveTab={setActiveTab} />
-              </Suspense>
-              <DashboardTabs 
-                user={user} 
-                activeTab={activeTab} 
-                setActiveTab={setActiveTab} 
-              />
+              <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
+                <TabsList className="grid grid-cols-5 mb-8 bg-muted/50 dark:bg-gray-800/50">
+                  <TabsTrigger value="bookings" className="data-[state=active]:bg-background dark:data-[state=active]:bg-gray-700 dark:text-gray-200 dark:data-[state=active]:text-white">Bookings</TabsTrigger>
+                  <TabsTrigger value="availability" className="data-[state=active]:bg-background dark:data-[state=active]:bg-gray-700 dark:text-gray-200 dark:data-[state=active]:text-white">Availability</TabsTrigger>
+                  <TabsTrigger value="profile" className="data-[state=active]:bg-background dark:data-[state=active]:bg-gray-700 dark:text-gray-200 dark:data-[state=active]:text-white">Profile</TabsTrigger>
+                  <TabsTrigger value="skills" className="data-[state=active]:bg-background dark:data-[state=active]:bg-gray-700 dark:text-gray-200 dark:data-[state=active]:text-white">Skills</TabsTrigger>
+                  <TabsTrigger value="notifications" className="data-[state=active]:bg-background dark:data-[state=active]:bg-gray-700 dark:text-gray-200 dark:data-[state=active]:text-white">
+                    Notifications
+                    {unreadCount > 0 && (
+                      <Badge 
+                        variant="secondary" 
+                        className="ml-2 bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300"
+                      >
+                        {unreadCount}
+                      </Badge>
+                    )}
+                  </TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="bookings">
+                  <BookingsList ref={bookingsListRef} user={user} />
+                </TabsContent>
+
+                <TabsContent value="availability">
+                  <AvailabilityCalendar user={user} />
+                </TabsContent>
+
+                <TabsContent value="profile">
+                  <ProfileSection user={user} onProfileUpdate={handleProfileUpdate} />
+                </TabsContent>
+
+                <TabsContent value="skills">
+                  <SkillsSection user={user} />
+                </TabsContent>
+
+                <TabsContent value="notifications">
+                  <div className="space-y-6">
+                    <div className="flex justify-between items-center">
+                      <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100">Notifications</h2>
+                      {unreadCount > 0 && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={async () => {
+                            // Mark all as read
+                            const { error } = await supabase
+                              .from('notifications')
+                              .update({ is_read: true })
+                              .eq('user_id', user.id)
+                              .eq('is_read', false)
+
+                            if (!error) {
+                              setNotifications(notifications.map(n => ({ ...n, is_read: true })))
+                              setUnreadCount(0)
+                              toast({
+                                title: "Success",
+                                description: "All notifications marked as read",
+                              })
+                            }
+                          }}
+                          className="text-purple-600 dark:text-purple-400 border-purple-200 dark:border-purple-800 hover:bg-purple-50 dark:hover:bg-purple-900/20"
+                        >
+                          Mark all as read
+                        </Button>
+                      )}
+                    </div>
+                    <NotificationsList 
+                      notifications={notifications} 
+                      onMarkAsRead={markNotificationAsRead} 
+                    />
+                  </div>
+                </TabsContent>
+              </Tabs>
+
             </motion.div>
           </div>
         </div>

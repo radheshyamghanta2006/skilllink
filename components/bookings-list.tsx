@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, forwardRef, useImperativeHandle } from "react"
 import { useRouter } from "next/navigation" // Added router import
 import { motion } from "framer-motion"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -10,14 +10,18 @@ import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 import { useToast } from "@/components/ui/use-toast"
-import { Calendar, Clock, MapPin, DollarSign, MessageSquare, Star } from "lucide-react"
+import { Calendar, Clock, MapPin, DollarSign, MessageSquare, Star, RefreshCw } from "lucide-react"
 import { ReviewModal } from "@/components/review-modal"
 
 type BookingsListProps = {
   user: any
 }
 
-export function BookingsList({ user }: BookingsListProps) {
+type BookingStatus = 'confirmed' | 'completed' | 'cancelled'
+type PaymentStatus = 'paid' | 'refunded'
+
+// Update component definition to use forwardRef
+export const BookingsList = forwardRef(({ user }: BookingsListProps, ref) => {
   const [bookings, setBookings] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState("upcoming")
@@ -27,8 +31,54 @@ export function BookingsList({ user }: BookingsListProps) {
   const supabase = createClientComponentClient()
   const router = useRouter() // Initialize router
 
+  useImperativeHandle(ref, () => ({
+    fetchBookings
+  }));
+
   useEffect(() => {
     fetchBookings()
+  }, [user])
+
+  useEffect(() => {
+    if (!user) return
+
+    // Subscribe to booking changes
+    const bookingsChannel = supabase
+      .channel('bookings_channel')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'bookings',
+          filter: `provider_id=eq.${user.id}`,
+        },
+        (payload) => {
+          console.log('Booking changed:', payload)
+          // Refresh bookings when any change occurs
+          fetchBookings()
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'bookings',
+          filter: `seeker_id=eq.${user.id}`,
+        },
+        (payload) => {
+          console.log('Booking changed:', payload)
+          // Refresh bookings when any change occurs
+          fetchBookings()
+        }
+      )
+      .subscribe()
+
+    // Cleanup subscription on unmount
+    return () => {
+      supabase.removeChannel(bookingsChannel)
+    }
   }, [user])
 
   const fetchBookings = async () => {
@@ -45,7 +95,8 @@ export function BookingsList({ user }: BookingsListProps) {
         .select(`
           *,
           provider:provider_id(id, name, profile_image),
-          seeker:seeker_id(id, name, profile_image)
+          seeker:seeker_id(id, name, profile_image),
+          slot:slot_id(*)
         `)
       
       // Filter based on user role
@@ -54,16 +105,14 @@ export function BookingsList({ user }: BookingsListProps) {
       } else if (user.role === 'seeker' || user.current_mode === 'seeker') {
         query = query.eq('seeker_id', user.id)
       } else {
-        // For 'both' role or any other case, get all bookings where user is either provider or seeker
+        // For 'both' role, get all bookings where user is either provider or seeker
         query = query.or(`provider_id.eq.${user.id},seeker_id.eq.${user.id}`)
       }
       
       // Execute the query
-      const { data, error } = await query.order('created_at', { ascending: false })
+      const { data, error } = await query.order('date', { ascending: false })
 
       if (error) throw error
-      
-      console.log("Bookings fetched:", data?.length || 0, "bookings")
       
       // Check if the booking has reviews
       const enhancedBookings = await Promise.all((data || []).map(async (booking) => {
@@ -79,6 +128,7 @@ export function BookingsList({ user }: BookingsListProps) {
         }
       }))
       
+      console.log("Bookings fetched:", enhancedBookings?.length || 0, "bookings")
       setBookings(enhancedBookings)
     } catch (error) {
       console.error("Error fetching bookings:", error)
@@ -92,31 +142,185 @@ export function BookingsList({ user }: BookingsListProps) {
     }
   }
 
+  // Add error handling utility function
+  const handleError = async (error: any, booking: any, operation: string) => {
+    console.error(`Error ${operation}:`, error)
+
+    // If there was a failed update, try to revert any partial changes
+    if (booking) {
+      try {
+        // Revert booking status if needed
+        if (operation.includes('status')) {
+          await supabase
+            .from('bookings')
+            .update({ 
+              status: booking.status,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', booking.id)
+        }
+
+        // Revert skill swap agreement if needed
+        if (booking.is_skill_swap) {
+          await supabase
+            .from('skill_swap_agreements')
+            .update({ 
+              status: booking.status,
+              updated_at: new Date().toISOString()
+            })
+            .eq('proposer_id', booking.seeker_id)
+            .eq('recipient_id', booking.provider_id)
+        }
+
+        // Send error notification to affected users
+        await Promise.all([
+          supabase.from('notifications').insert([{
+            user_id: booking.provider_id,
+            type: 'error',
+            title: 'Operation Failed',
+            message: `Failed to ${operation} for ${booking.service_name}. The system has been restored to its previous state.`,
+            data: { 
+              booking_id: booking.id,
+              error: error.message
+            }
+          }]),
+          supabase.from('notifications').insert([{
+            user_id: booking.seeker_id,
+            type: 'error',
+            title: 'Operation Failed',
+            message: `Failed to ${operation} for ${booking.service_name}. The system has been restored to its previous state.`,
+            data: { 
+              booking_id: booking.id,
+              error: error.message
+            }
+          }])
+        ])
+      } catch (revertError) {
+        console.error('Error reverting changes:', revertError)
+      }
+    }
+
+    // Show error toast to current user
+    toast({
+      title: "Error",
+      description: `Failed to ${operation}. Please try again or contact support if the problem persists.`,
+      variant: "destructive",
+    })
+
+    // Refresh bookings to ensure UI is in sync with database
+    fetchBookings()
+  }
+
+  // Update handleUpdateStatus to handle skill swap completion
   const handleUpdateStatus = async (bookingId: string, newStatus: string) => {
     try {
+      const booking = bookings.find(b => b.id === bookingId)
+      const isSkillSwap = booking?.is_skill_swap
+
       const { error } = await supabase
         .from('bookings')
-        .update({ status: newStatus })
+        .update({ 
+          status: newStatus,
+          updated_at: new Date().toISOString()
+        })
         .eq('id', bookingId)
       
       if (error) throw error
+
+      // For skill swaps, update the skill swap agreement status when completed
+      if (isSkillSwap && newStatus === 'completed') {
+        const { error: swapError } = await supabase
+          .from('skill_swap_agreements')
+          .update({ 
+            status: 'completed',
+            updated_at: new Date().toISOString()
+          })
+          .eq('proposer_id', booking.seeker_id)
+          .eq('recipient_id', booking.provider_id)
+
+        if (swapError) throw swapError
+      }
       
       // Update the local state
       setBookings(bookings.map((booking) => 
         booking.id === bookingId ? { ...booking, status: newStatus } : booking
       ))
 
+      // Send notifications to both parties for skill swaps
+      const notificationData: Record<'completed' | 'cancelled', { title: string; message: string }> = {
+        completed: {
+          title: 'Skill Swap Completed',
+          message: `The skill swap session for ${booking.service_name} has been marked as completed.`
+        },
+        cancelled: {
+          title: 'Skill Swap Cancelled',
+          message: `The skill swap session for ${booking.service_name} has been cancelled.`
+        }
+      }
+
+      if (isSkillSwap) {
+        // Send notifications to both parties
+        await Promise.all([
+          supabase.from('notifications').insert([{
+            user_id: booking.provider_id,
+            type: `skill_swap_${newStatus}`,
+            title: notificationData[newStatus as 'completed' | 'cancelled'].title,
+            message: notificationData[newStatus as 'completed' | 'cancelled'].message,
+            data: { 
+              booking_id: bookingId,
+              is_skill_swap: true
+            }
+          }]),
+          supabase.from('notifications').insert([{
+            user_id: booking.seeker_id,
+            type: `skill_swap_${newStatus}`,
+            title: notificationData[newStatus as 'completed' | 'cancelled'].title,
+            message: notificationData[newStatus as 'completed' | 'cancelled'].message,
+            data: { 
+              booking_id: bookingId,
+              is_skill_swap: true
+            }
+          }])
+        ])
+      } else {
+        // Handle regular booking notifications as before
+        const statusMessages: Record<BookingStatus, { seeker: string; provider: string }> = {
+          confirmed: {
+            seeker: `Your booking for ${booking?.service_name} has been confirmed by ${booking?.provider?.name}`,
+            provider: `You have confirmed the booking for ${booking?.service_name} with ${booking?.seeker?.name}`
+          },
+          completed: {
+            seeker: `Your session for ${booking?.service_name} has been marked as completed`,
+            provider: `The session for ${booking?.service_name} has been marked as completed`
+          },
+          cancelled: {
+            seeker: `Your booking for ${booking?.service_name} has been cancelled`,
+            provider: `The booking for ${booking?.service_name} has been cancelled`
+          }
+        }
+
+        // Send notification to the other party
+        const notificationMessage = user.id === booking?.provider_id 
+          ? statusMessages[newStatus as BookingStatus].seeker 
+          : statusMessages[newStatus as BookingStatus].provider
+
+        const otherPartyId = user.id === booking?.provider_id ? booking?.seeker_id : booking?.provider_id
+
+        await supabase.from('notifications').insert([{
+          user_id: otherPartyId,
+          type: `booking_${newStatus}`,
+          title: `Booking ${newStatus}`,
+          message: notificationMessage,
+          data: { booking_id: bookingId }
+        }])
+      }
+
       toast({
         title: "Status updated",
-        description: `Booking status changed to ${newStatus}.`,
+        description: `${isSkillSwap ? 'Skill swap' : 'Booking'} status changed to ${newStatus}.`,
       })
     } catch (error) {
-      console.error("Error updating booking status:", error)
-      toast({
-        title: "Error",
-        description: "Failed to update booking status.",
-        variant: "destructive",
-      })
+      await handleError(error, bookings.find(b => b.id === bookingId), `update status to ${newStatus}`)
     }
   }
 
@@ -136,58 +340,88 @@ export function BookingsList({ user }: BookingsListProps) {
         ),
       )
 
+      // Send notification based on the new payment status
+      const bookingData = bookings.find(b => b.id === bookingId)
+      const paymentStatusMessages: Record<PaymentStatus, { seeker: string; provider: string }> = {
+        paid: {
+          seeker: `Payment for ${bookingData?.service_name} has been marked as received by ${bookingData?.provider?.name}`,
+          provider: `You have marked the payment as received for ${bookingData?.service_name}`
+        },
+        refunded: {
+          seeker: `Payment for ${bookingData?.service_name} has been marked as refunded`,
+          provider: `You have marked the payment as refunded for ${bookingData?.service_name}`
+        }
+      }
+
+      if (newStatus in paymentStatusMessages) {
+        const status = newStatus as PaymentStatus
+        await supabase.from('notifications').insert([{
+          user_id: bookingData?.seeker_id,
+          type: `payment_${status}`,
+          title: `Payment ${status}`,
+          message: paymentStatusMessages[status].seeker,
+          data: { booking_id: bookingId }
+        }])
+      }
+
       toast({
         title: "Payment updated",
         description: `Payment status changed to ${newStatus}.`,
       })
     } catch (error) {
-      console.error("Error updating payment status:", error)
-      toast({
-        title: "Error",
-        description: "Failed to update payment status.",
-        variant: "destructive",
-      })
+      await handleError(error, bookings.find(b => b.id === bookingId), `update payment status to ${newStatus}`)
     }
   }
 
   const openReviewModal = (booking: any) => {
+    // Check if the booking is completed
+    if (booking.status !== 'completed') {
+      toast({
+        title: "Cannot review yet",
+        description: "You can only review completed bookings.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    // Check if user has already reviewed
+    if (booking.has_review) {
+      toast({
+        title: "Already reviewed",
+        description: "You have already submitted a review for this booking.",
+        variant: "destructive",
+      })
+      return
+    }
+
     setSelectedBooking(booking)
     setIsReviewModalOpen(true)
   }
 
   const handleReviewSubmit = async (bookingId: string, rating: number, comment: string) => {
     try {
-      // Create the review in the database
-      const { error } = await supabase.from('reviews').insert([{
-        booking_id: bookingId,
-        rating: rating,
-        comment: comment,
-        reviewer_id: user.id,
-        reviewee_id: user.role === 'provider' ? 
-          bookings.find(b => b.id === bookingId)?.seeker_id : 
-          bookings.find(b => b.id === bookingId)?.provider_id,
-        provider_id: bookings.find(b => b.id === bookingId)?.provider_id,
-        seeker_id: bookings.find(b => b.id === bookingId)?.seeker_id
-      }])
-      
-      if (error) throw error
-      
-      // Update the local state
-      setBookings(bookings.map((booking) => 
-        booking.id === bookingId ? { ...booking, has_review: true } : booking
+      // Find the booking in local state
+      const booking = bookings.find(b => b.id === bookingId)
+      if (!booking) throw new Error('Booking not found')
+
+      // Update the local state to show review was submitted
+      setBookings(bookings.map((b) => 
+        b.id === bookingId ? { ...b, has_review: true } : b
       ))
 
+      // Show success message
       toast({
         title: "Review submitted",
         description: "Thank you for your feedback!",
       })
 
+      // Close the review modal
       setIsReviewModalOpen(false)
     } catch (error) {
       console.error("Error submitting review:", error)
       toast({
         title: "Error",
-        description: "Failed to submit review.",
+        description: error instanceof Error ? error.message : "Failed to submit review",
         variant: "destructive",
       })
     }
@@ -200,6 +434,97 @@ export function BookingsList({ user }: BookingsListProps) {
     
     // Navigate to the messages page with the user ID as a query parameter
     router.push(`/messages?user=${chatUserId}`)
+  }
+
+  // Update the handleSkillSwapAccept function with better error handling
+  const handleSkillSwapAccept = async (booking: any) => {
+    const originalStatus = booking.status
+    
+    try {
+      // First, check if the skill swap is still valid
+      const { data: swapData, error: swapCheckError } = await supabase
+        .from('skill_swap_agreements')
+        .select('status')
+        .eq('proposer_id', booking.seeker_id)
+        .eq('recipient_id', booking.provider_id)
+        .single()
+
+      if (swapCheckError) throw swapCheckError
+
+      if (swapData.status !== 'pending') {
+        throw new Error('This skill swap request is no longer valid')
+      }
+
+      // Start a transaction by updating all related records
+      const updates = []
+
+      // Update skill swap agreement
+      updates.push(
+        supabase
+          .from('skill_swap_agreements')
+          .update({ 
+            status: 'accepted',
+            updated_at: new Date().toISOString()
+          })
+          .eq('proposer_id', booking.seeker_id)
+          .eq('recipient_id', booking.provider_id)
+      )
+
+      // Update booking status
+      updates.push(
+        supabase
+          .from('bookings')
+          .update({ 
+            status: 'confirmed',
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', booking.id)
+      )
+
+      // Create notifications for both parties
+      updates.push(
+        supabase.from('notifications').insert([
+          {
+            user_id: booking.seeker_id,
+            type: 'skill_swap_accepted',
+            title: 'Skill Swap Accepted!',
+            message: `${booking.provider.name} has accepted your skill swap request for ${booking.service_name}`,
+            data: { 
+              booking_id: booking.id,
+              is_skill_swap: true
+            }
+          },
+          {
+            user_id: booking.provider_id,
+            type: 'skill_swap_accepted',
+            title: 'Skill Swap Confirmed',
+            message: `You've accepted the skill swap request from ${booking.seeker.name} for ${booking.service_name}`,
+            data: { 
+              booking_id: booking.id,
+              is_skill_swap: true
+            }
+          }
+        ])
+      )
+
+      // Execute all updates
+      const results = await Promise.all(updates)
+      const errors = results.filter(r => r.error)
+
+      if (errors.length > 0) {
+        throw new Error('Failed to update one or more records')
+      }
+
+      toast({
+        title: "Success",
+        description: "Skill swap accepted successfully!",
+      })
+
+      // Refresh the bookings list
+      fetchBookings()
+    } catch (error) {
+      await handleError(error, { ...booking, status: originalStatus }, 'accept skill swap')
+    }
   }
 
   const getStatusBadge = (status: string) => {
@@ -257,9 +582,14 @@ export function BookingsList({ user }: BookingsListProps) {
     today.setHours(0, 0, 0, 0)
 
     if (activeTab === "upcoming") {
-      return bookingDate >= today && (booking.status === "pending" || booking.status === "confirmed")
+      return bookingDate >= today && 
+             (booking.status === "pending" || booking.status === "confirmed") &&
+             !booking.is_skill_swap
     } else if (activeTab === "past") {
-      return bookingDate < today || booking.status === "completed" || booking.status === "cancelled"
+      return (bookingDate < today || booking.status === "completed" || booking.status === "cancelled") &&
+             !booking.is_skill_swap
+    } else if (activeTab === "swaps") {
+      return booking.is_skill_swap
     } else if (activeTab === "all") {
       return true
     }
@@ -299,9 +629,10 @@ export function BookingsList({ user }: BookingsListProps) {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid grid-cols-3 mb-6 bg-muted/50 dark:bg-gray-800/50">
-          <TabsTrigger value="upcoming" className="dark:text-gray-200 dark:data-[state=active]:bg-gray-700 dark:data-[state=active]:text-white">Upcoming</TabsTrigger>
-          <TabsTrigger value="past" className="dark:text-gray-200 dark:data-[state=active]:bg-gray-700 dark:data-[state=active]:text-white">Past</TabsTrigger>
+        <TabsList className="grid grid-cols-4 mb-6 bg-muted/50 dark:bg-gray-800/50">
+          <TabsTrigger value="upcoming" className="dark:text-gray-200 dark.data-[state=active]:bg-gray-700 dark.data-[state=active]:text-white">Upcoming</TabsTrigger>
+          <TabsTrigger value="past" className="dark:text-gray-200 dark.data-[state=active]:bg-gray-700 dark.data-[state=active]:text-white">Past</TabsTrigger>
+          <TabsTrigger value="swaps" className="dark:text-gray-200 dark.data-[state=active]:bg-gray-700 dark.data-[state=active]:text-white">Skill Swaps</TabsTrigger>
           <TabsTrigger value="all" className="dark:text-gray-200 dark.data-[state=active]:bg-gray-700 dark.data-[state=active]:text-white">All</TabsTrigger>
         </TabsList>
 
@@ -364,42 +695,14 @@ export function BookingsList({ user }: BookingsListProps) {
                         </div>
 
                         <div className="flex flex-wrap items-center gap-2">
-                          {booking.status === "pending" && (
-                            <Badge className="bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300">
-                              Pending
-                            </Badge>
-                          )}
-                          {booking.status === "confirmed" && (
+                          {booking.is_skill_swap && (
                             <Badge className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">
-                              Confirmed
+                              <RefreshCw className="h-3 w-3 mr-1" />
+                              Skill Swap
                             </Badge>
                           )}
-                          {booking.status === "completed" && (
-                            <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
-                              Completed
-                            </Badge>
-                          )}
-                          {booking.status === "cancelled" && (
-                            <Badge className="bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300">
-                              Cancelled
-                            </Badge>
-                          )}
-                          
-                          {booking.payment_status === "pending" && (
-                            <Badge variant="outline" className="border-yellow-300 text-yellow-700 dark:border-yellow-800 dark:text-yellow-400">
-                              Payment Pending
-                            </Badge>
-                          )}
-                          {booking.payment_status === "paid" && (
-                            <Badge variant="outline" className="border-green-300 text-green-700 dark:border-green-800 dark:text-green-400">
-                              Paid
-                            </Badge>
-                          )}
-                          {booking.payment_status === "refunded" && (
-                            <Badge variant="outline" className="border-red-300 text-red-700 dark:border-red-800 dark:text-red-400">
-                              Refunded
-                            </Badge>
-                          )}
+                          {getStatusBadge(booking.status)}
+                          {!booking.is_skill_swap && getPaymentBadge(booking.payment_status)}
                         </div>
                       </div>
 
@@ -423,6 +726,27 @@ export function BookingsList({ user }: BookingsListProps) {
                                 Decline
                               </Button>
                             </>
+                          )}
+
+                          {booking.is_skill_swap && booking.status === "pending" && user.id === booking.provider_id && (
+                            <div className="flex gap-2">
+                              <Button
+                                size="sm"
+                                onClick={() => handleSkillSwapAccept(booking)}
+                                className="bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-800"
+                              >
+                                <RefreshCw className="mr-1 h-4 w-4" />
+                                Accept Swap
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleUpdateStatus(booking.id, "cancelled")}
+                                className="border-red-300 text-red-700 hover:bg-red-50 dark:border-red-700 dark:text-red-400 dark:hover:bg-red-900/20"
+                              >
+                                Decline Swap
+                              </Button>
+                            </div>
                           )}
 
                           {booking.status === "confirmed" && (
@@ -517,8 +841,9 @@ export function BookingsList({ user }: BookingsListProps) {
           isOpen={isReviewModalOpen}
           onClose={() => setIsReviewModalOpen(false)}
           onSubmit={handleReviewSubmit}
+          user={user}
         />
       )}
     </div>
   )
-}
+})

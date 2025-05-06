@@ -10,9 +10,10 @@ type DashboardSidebarProps = {
   user: any
   activeTab: string
   setActiveTab: (tab: string) => void
+  unreadCount?: number
 }
 
-export function DashboardSidebar({ user, activeTab, setActiveTab }: DashboardSidebarProps) {
+export function DashboardSidebar({ user, activeTab, setActiveTab, unreadCount = 0 }: DashboardSidebarProps) {
   const getInitials = (name: string) => {
     return name
       .split(" ")
@@ -58,6 +59,14 @@ export function DashboardSidebar({ user, activeTab, setActiveTab }: DashboardSid
           >
             <Calendar className="mr-2 h-4 w-4" />
             Bookings
+            {unreadCount > 0 && (
+              <Badge 
+                variant="secondary" 
+                className="ml-auto bg-white dark:bg-gray-800 text-purple-600 dark:text-purple-400"
+              >
+                {unreadCount}
+              </Badge>
+            )}
           </Button>
 
           <Button

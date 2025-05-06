@@ -102,11 +102,54 @@ export default function ProviderPage() {
     fetchData()
   }, [params.id])
 
-  const handleBookingSuccess = (bookingData: any) => {
+  const handleBookingSuccess = async (bookingData: any) => {
     console.log("Booking created successfully:", bookingData)
-    setSelectedBooking(bookingData)
     setIsBookingModalOpen(false)
-    setIsPaymentModalOpen(true)
+
+    // Create notification
+    const notificationData = bookingData.is_skill_swap 
+      ? {
+          title: "New Skill Swap Request",
+          message: `${currentUser?.name} has requested a skill swap session for ${bookingData.service_name}`,
+          type: "skill_swap_request"
+        }
+      : {
+          title: "New Booking Request",
+          message: `${currentUser?.name} has requested to book a session for ${bookingData.service_name}`,
+          type: "new_booking"
+        }
+
+    try {
+      // Send notification
+      await supabase.from('notifications').insert([{
+        user_id: provider.id,
+        type: notificationData.type,
+        title: notificationData.title,
+        message: notificationData.message,
+        data: { 
+          booking_id: bookingData.id,
+          is_skill_swap: bookingData.is_skill_swap
+        }
+      }])
+
+      toast({
+        title: notificationData.title,
+        description: "Your request has been sent successfully.",
+      })
+
+      // Handle payment flow for non-skill-swap bookings
+      if (!bookingData.is_skill_swap) {
+        setSelectedBooking(bookingData)
+        setIsPaymentModalOpen(true)
+      }
+    } catch (error) {
+      console.error("Error creating notification:", error)
+      toast({
+        title: "Warning",
+        description: "Booking created but notification could not be sent.",
+        variant: "destructive",
+      })
+    }
   }
 
   const handlePaymentSuccess = () => {
@@ -202,39 +245,29 @@ export default function ProviderPage() {
                   <div className="space-y-3 w-full">
                     <Button
                       onClick={() => setIsBookingModalOpen(true)}
-                      className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 dark:from-purple-500 dark:to-blue-500"
-                      disabled={!isAuthenticated}
+                      className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
                     >
-                      <Calendar className="mr-2 h-4 w-4" /> Book a Session
+                      Book Session
                     </Button>
-                    <Button
-                      variant="outline"
-                      className="w-full dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-600"
-                      disabled={!isAuthenticated}
-                      onClick={() => router.push(`/messages?user=${provider.id}`)}
-                    >
-                      <MessageCircle className="mr-2 h-4 w-4" /> Message
-                    </Button>
-                    {provider.skill_swap && (
+                    {provider.skill_swap && currentUser?.skills?.length > 0 && (
                       <Button
-                        variant="outline"
-                        className="w-full border-green-300 text-green-700 hover:bg-green-50 dark:border-green-800 dark:text-green-400 dark:hover:bg-green-900/30"
-                        disabled={!isAuthenticated}
                         onClick={() => setIsSkillSwapModalOpen(true)}
+                        variant="outline"
+                        className="w-full border-purple-300 text-purple-700 hover:bg-purple-50 dark:border-purple-700 dark:text-purple-400 dark:hover:bg-purple-900/20"
                       >
-                        <RefreshCw className="mr-2 h-4 w-4" /> Propose Skill Swap
+                        <RefreshCw className="mr-2 h-4 w-4" />
+                        Propose Skill Swap
                       </Button>
                     )}
+                    <Button
+                      onClick={() => router.push(`/messages?user=${provider.id}`)}
+                      variant="outline"
+                      className="w-full"
+                    >
+                      <MessageCircle className="mr-2 h-4 w-4" />
+                      Message
+                    </Button>
                   </div>
-                  {!isAuthenticated && (
-                    <p className="text-sm text-center mt-4 text-gray-500 dark:text-gray-400">
-                      Please{" "}
-                      <Button variant="link" className="p-0 h-auto dark:text-blue-400" onClick={() => router.push("/login")}>
-                        log in
-                      </Button>{" "}
-                      to book or message
-                    </p>
-                  )}
                 </div>
                 <div className="md:w-2/3 p-8">
                   <Tabs defaultValue="about">

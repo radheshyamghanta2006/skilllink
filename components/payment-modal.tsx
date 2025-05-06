@@ -45,7 +45,7 @@ export function PaymentModal({ booking, isOpen, onClose, onSuccess }: PaymentMod
         setIsLoading(true)
         console.log("Processing offline payment for booking:", booking.id)
 
-        // Update the booking in the database to mark payment as pending and status as confirmed
+        // Update the booking in the database
         const { error } = await supabase
           .from('bookings')
           .update({ 
@@ -55,12 +55,27 @@ export function PaymentModal({ booking, isOpen, onClose, onSuccess }: PaymentMod
           })
           .eq('id', booking.id)
 
-        if (error) {
-          console.error("Database error when updating booking:", error)
-          throw error
-        }
+        if (error) throw error
 
-        console.log("Booking updated successfully for offline payment")
+        // Send notifications to both parties
+        await Promise.all([
+          // Notify provider
+          supabase.from('notifications').insert([{
+            user_id: booking.provider_id,
+            type: 'payment_pending',
+            title: 'Offline Payment Pending',
+            message: `${booking.seeker.name} will pay in person for ${booking.service_name}`,
+            data: { booking_id: booking.id }
+          }]),
+          // Notify seeker
+          supabase.from('notifications').insert([{
+            user_id: booking.seeker_id,
+            type: 'booking_confirmed',
+            title: 'Booking Confirmed',
+            message: `Your booking for ${booking.service_name} has been confirmed. Please pay in person.`,
+            data: { booking_id: booking.id }
+          }])
+        ])
 
         toast({
           title: "Payment marked as offline",
@@ -81,97 +96,61 @@ export function PaymentModal({ booking, isOpen, onClose, onSuccess }: PaymentMod
       return
     }
 
-    // For online payment with Razorpay
+    // For online payment
     setIsLoading(true)
-    console.log("Processing online payment for booking:", booking.id)
 
     try {
-      // In a real app, this would create an order on your backend
-      const amount = 5000 // ₹50.00 (in paise)
-      const currency = "INR"
+      // Create order ID for Razorpay (in real app this would come from backend)
       const orderId = `order_${Date.now()}`
 
-      const options = {
-        key: "rzp_test_YourTestKey", // Replace with your Razorpay key
-        amount,
-        currency,
-        name: "SkillLink",
-        description: `Payment for ${booking.service_name}`,
-        order_id: orderId,
-        handler: (response: any) => {
-          // Handle successful payment
-          handlePaymentSuccess(response)
-        },
-        prefill: {
-          name: "User Name",
-          email: "user@example.com",
-          contact: "9999999999",
-        },
-        notes: {
-          booking_id: booking.id,
-        },
-        theme: {
-          color: "#9333EA",
-        },
-      }
+      // Simulate payment processing
+      setTimeout(async () => {
+        // Update booking status
+        const { error: bookingError } = await supabase
+          .from('bookings')
+          .update({ 
+            payment_status: 'paid',
+            status: 'confirmed',
+            payment_id: `pay_${Date.now()}`,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', booking.id)
 
-      // For demo purposes, we'll simulate a successful payment
-      setTimeout(() => {
-        setIsLoading(false)
-        handlePaymentSuccess({
-          razorpay_payment_id: `pay_${Date.now()}`,
-          razorpay_order_id: orderId,
-          razorpay_signature: "signature",
+        if (bookingError) throw bookingError
+
+        // Send notifications to both parties
+        await Promise.all([
+          // Notify provider
+          supabase.from('notifications').insert([{
+            user_id: booking.provider_id,
+            type: 'payment_received',
+            title: 'Payment Received',
+            message: `Payment received from ${booking.seeker.name} for ${booking.service_name}`,
+            data: { booking_id: booking.id }
+          }]),
+          // Notify seeker
+          supabase.from('notifications').insert([{
+            user_id: booking.seeker_id,
+            type: 'payment_completed',
+            title: 'Payment Completed',
+            message: `Your payment for ${booking.service_name} has been processed successfully`,
+            data: { booking_id: booking.id }
+          }])
+        ])
+
+        toast({
+          title: "Payment successful",
+          description: "Your booking has been confirmed.",
         })
-      }, 2000)
 
-      // In a real app, this would open the Razorpay checkout
-      // const razorpay = new window.Razorpay(options)
-      // razorpay.open()
+        onSuccess()
+      }, 2000)
     } catch (error) {
-      console.error("Error initiating payment:", error)
+      console.error("Error processing payment:", error)
       setIsLoading(false)
       toast({
         title: "Error",
-        description: "Failed to initiate payment.",
-        variant: "destructive",
-      })
-    }
-  }
-
-  const handlePaymentSuccess = async (response: any) => {
-    try {
-      console.log("Payment successful, updating booking:", booking.id)
-      
-      // Update the booking in the database to mark payment as paid and status as confirmed
-      const { error } = await supabase
-        .from('bookings')
-        .update({ 
-          payment_status: 'paid',
-          status: 'confirmed',
-          payment_id: response.razorpay_payment_id,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', booking.id)
-
-      if (error) {
-        console.error("Database error when updating booking after payment:", error)
-        throw error
-      }
-
-      console.log("Booking updated successfully after payment")
-
-      toast({
-        title: "Payment successful",
-        description: "Your booking has been confirmed.",
-      })
-
-      onSuccess()
-    } catch (error) {
-      console.error("Error processing payment:", error)
-      toast({
-        title: "Error",
-        description: "Payment was successful but we couldn't update your booking. Please contact support.",
+        description: "Failed to process payment.",
         variant: "destructive",
       })
     }
