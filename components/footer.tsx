@@ -51,7 +51,7 @@ export function Footer() {
             <div className="flex items-center space-x-2">
               <div className="relative w-10 h-10 bg-gradient-to-r from-purple-600 to-blue-600 dark:from-purple-500 dark:to-blue-500 rounded-lg p-1.5 shadow-lg">
                 <Image 
-                  src="/placeholder.svg?height=32&width=32" 
+                  src="/logo.png?height=32&width=32" 
                   alt="SkillLink Logo" 
                   fill 
                   className="object-contain" 

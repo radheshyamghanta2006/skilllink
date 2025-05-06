@@ -193,14 +193,11 @@ export function Navbar() {
           <motion.div
             whileHover={{ rotate: [0, -10, 10, -10, 0] }}
             transition={{ duration: 0.5 }}
-            className="relative w-8 h-8"
+            className="relative w-16 h-16"
           >
-            <Image
-              src="/placeholder.svg?height=32&width=32"
-              alt="SkillLink Logo"
-              fill
-              className="object-contain"
-            />
+
+            <Image src="/logo.png?height=50&width=50" alt="SkillLink Logo" fill className="object-contain" />
+
           </motion.div>
           <span className="font-bold text-xl bg-gradient-to-r from-purple-600 to-blue-600 dark:from-purple-400 dark:to-blue-400 bg-clip-text text-transparent group-hover:bg-gradient-to-r group-hover:from-purple-700 group-hover:to-blue-700 dark:group-hover:from-purple-300 dark:group-hover:to-blue-300 transition-all duration-300">
             SkillLink
