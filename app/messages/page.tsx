@@ -132,7 +132,6 @@ export default function MessagesPage() {
     if (activeConversation && user) {
       fetchMessages(activeConversation.id)
 
-      // Subscribe to new messages
       const channel = supabase
         .channel(`messages:${activeConversation.id}`)
         .on(
@@ -145,6 +144,8 @@ export default function MessagesPage() {
           },
           (payload) => {
             setMessages((prev) => [...prev, payload.new])
+            // Scroll to bottom only for new incoming messages
+            setTimeout(() => scrollToBottom(), 100)
           },
         )
         .subscribe()
@@ -154,13 +155,6 @@ export default function MessagesPage() {
       }
     }
   }, [activeConversation, user])
-
-  // Only scroll to bottom when messages change AND there are messages to scroll to
-  useEffect(() => {
-    if (messages.length > 0) {
-      scrollToBottom()
-    }
-  }, [messages])
 
   const fetchConversations = async (userId: string) => {
     try {
@@ -262,10 +256,15 @@ export default function MessagesPage() {
 
       setMessages(data || [])
       
-      // After setting messages, scroll to bottom with a slight delay
-      // to ensure messages are rendered before scrolling
+      // Only scroll to bottom on initial load if there are messages
       if (data && data.length > 0) {
-        setTimeout(() => scrollToBottom(), 200)
+        // Use requestAnimationFrame to ensure DOM is updated
+        requestAnimationFrame(() => {
+          const messageContainer = document.getElementById('message-container');
+          if (messageContainer) {
+            messageContainer.scrollTop = messageContainer.scrollHeight;
+          }
+        });
       }
 
       // Mark messages as read
@@ -282,6 +281,13 @@ export default function MessagesPage() {
         description: "Failed to load messages.",
         variant: "destructive",
       })
+    }
+  }
+
+  const scrollToBottom = () => {
+    const messageContainer = document.getElementById('message-container');
+    if (messageContainer) {
+      messageContainer.scrollTop = messageContainer.scrollHeight;
     }
   }
 
@@ -320,6 +326,10 @@ export default function MessagesPage() {
       ))
       
       setNewMessage("")
+      // Scroll to the new message
+      requestAnimationFrame(() => {
+        scrollToBottom();
+      });
     } catch (error) {
       console.error("Error sending message:", error)
       toast({
@@ -328,13 +338,6 @@ export default function MessagesPage() {
         variant: "destructive",
       })
     }
-  }
-
-  const scrollToBottom = () => {
-    // Use a small timeout to ensure DOM is updated before scrolling
-    setTimeout(() => {
-      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
-    }, 100)
   }
 
   const getInitials = (name: string) => {
@@ -368,10 +371,11 @@ export default function MessagesPage() {
       <main className="flex-grow container mx-auto px-4 py-8">
         <h1 className="text-2xl font-bold mb-6">Messages</h1>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 h-[calc(100vh-250px)]">
-          {/* Conversations List */}
-          <Card className="md:col-span-1 overflow-hidden flex flex-col">
-            <div className="p-4 border-b">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 h-[calc(100vh-200px)]">
+          {/* Conversations List - Left Side */}
+          <Card className="md:col-span-1 h-full flex flex-col overflow-hidden">
+            {/* Search Box - Fixed at Top */}
+            <div className="p-4 border-b flex-shrink-0 bg-white dark:bg-gray-800">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
                 <Input
@@ -382,14 +386,16 @@ export default function MessagesPage() {
                 />
               </div>
             </div>
-            <div className="flex-grow overflow-y-auto">
+
+            {/* Conversations List - Scrollable */}
+            <div className="flex-1 min-h-0 overflow-y-auto">
               {filteredConversations.length > 0 ? (
                 filteredConversations.map((conversation) => (
                   <motion.div
                     key={conversation.id}
                     whileHover={{ backgroundColor: "rgba(147, 51, 234, 0.05)" }}
                     className={`p-4 border-b cursor-pointer ${
-                      activeConversation?.id === conversation.id ? "bg-purple-50" : ""
+                      activeConversation?.id === conversation.id ? "bg-purple-50 dark:bg-gray-800" : ""
                     }`}
                     onClick={() => setActiveConversation(conversation)}
                   >
@@ -420,11 +426,12 @@ export default function MessagesPage() {
             </div>
           </Card>
 
-          {/* Messages */}
-          <Card className="md:col-span-2 flex flex-col">
+          {/* Messages - Right Side */}
+          <Card className="md:col-span-2 h-full flex flex-col overflow-hidden">
             {activeConversation ? (
               <>
-                <div className="p-4 border-b">
+                {/* Header */}
+                <div className="p-4 border-b flex-shrink-0">
                   <div className="flex items-center">
                     <Avatar className="h-10 w-10 mr-3">
                       <AvatarImage
@@ -438,52 +445,58 @@ export default function MessagesPage() {
                     </div>
                   </div>
                 </div>
-                <CardContent className="flex-grow overflow-y-auto p-4" id="message-container">
-                  <div className="space-y-4">
-                    {messages.length > 0 ? (
-                      messages.map((message) => (
-                        <div
-                          key={message.id}
-                          className={`flex ${message.sender_id === user.id ? "justify-end" : "justify-start"}`}
-                        >
+
+                {/* Messages Container */}
+                <div className="flex-1 min-h-0 overflow-hidden">
+                  <div className="h-full overflow-y-auto p-4" id="message-container">
+                    <div className="space-y-4">
+                      {messages.length > 0 ? (
+                        messages.map((message) => (
                           <div
-                            className={`max-w-[70%] rounded-lg p-3 ${
-                              message.sender_id === user.id ? "bg-purple-600 text-white" : "bg-gray-100 text-gray-800"
-                            }`}
+                            key={message.id}
+                            className={`flex ${message.sender_id === user.id ? "justify-end" : "justify-start"}`}
                           >
-                            <p>{message.content}</p>
                             <div
-                              className={`text-xs mt-1 ${
-                                message.sender_id === user.id ? "text-purple-200" : "text-gray-500"
+                              className={`max-w-[70%] rounded-lg p-3 ${
+                                message.sender_id === user.id ? "bg-purple-600 text-white" : "bg-gray-100 text-gray-800"
                               }`}
                             >
-                              {new Date(message.created_at).toLocaleTimeString([], {
-                                hour: "2-digit",
-                                minute: "2-digit",
-                              })}
+                              <p>{message.content}</p>
+                              <div
+                                className={`text-xs mt-1 ${
+                                  message.sender_id === user.id ? "text-purple-200" : "text-gray-500"
+                                }`}
+                              >
+                                {new Date(message.created_at).toLocaleTimeString([], {
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                })}
+                              </div>
                             </div>
                           </div>
+                        ))
+                      ) : (
+                        <div className="text-center py-8 text-gray-500">
+                          <p>No messages yet. Send your first message!</p>
                         </div>
-                      ))
-                    ) : (
-                      <div className="text-center py-8 text-gray-500">
-                        <p>No messages yet. Send your first message!</p>
-                      </div>
-                    )}
-                    <div ref={messagesEndRef} />
+                      )}
+                      <div ref={messagesEndRef} />
+                    </div>
                   </div>
-                </CardContent>
-                <div className="p-4 border-t">
-                  <form onSubmit={sendMessage} className="flex items-center">
+                </div>
+
+                {/* Input Box */}
+                <div className="p-4 border-t bg-white dark:bg-gray-800 flex-shrink-0">
+                  <form onSubmit={sendMessage} className="flex items-center gap-2">
                     <Input
                       placeholder="Type a message..."
                       value={newMessage}
                       onChange={(e) => setNewMessage(e.target.value)}
-                      className="flex-grow mr-2"
+                      className="flex-1"
                     />
                     <Button
                       type="submit"
-                      className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+                      className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 flex-shrink-0"
                       disabled={!newMessage.trim()}
                     >
                       <Send className="h-4 w-4" />

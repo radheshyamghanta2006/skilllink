@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { motion } from "framer-motion"
@@ -14,6 +14,8 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useToast } from "@/components/ui/use-toast"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { ExclamationTriangleIcon } from "@radix-ui/react-icons"
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://skilllink-one.vercel.app';
@@ -21,20 +23,82 @@ const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://skilllink-one.verc
 export default function SignupPage() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
+  const [confirmPassword, setConfirmPassword] = useState("")
   const [name, setName] = useState("")
   const [role, setRole] = useState("both")
   const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const router = useRouter()
   const { toast } = useToast()
   const supabase = createClientComponentClient()
 
+  // Check if user is already logged in
+  useEffect(() => {
+    const checkSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (session) {
+        toast({
+          title: "Already logged in",
+          description: "You are already logged in. Redirecting to dashboard...",
+        })
+        router.replace("/dashboard")
+      }
+    }
+    checkSession()
+  }, [])
+
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
+    setError(null) // Clear previous errors
 
     try {
+      // Enhanced validation
+      if (!email || !password || !confirmPassword || !name) {
+        setError("Please fill in all fields")
+        return // Return early instead of throwing
+      }
+
+      if (!email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) {
+        setError("Please enter a valid email address")
+        return
+      }
+
+      if (password.length < 6) {
+        setError("Password must be at least 6 characters long")
+        return
+      }
+
+      if (password !== confirmPassword) {
+        setError("Passwords do not match")
+        return
+      }
+
+      if (name.length < 2) {
+        setError("Please enter your full name")
+        return
+      }
+
+      // Check if email already exists in auth
+      const { data: existingUser, error: checkError } = await supabase
+        .from("users")
+        .select("id")
+        .eq("email", email)
+        .single()
+
+      if (checkError && checkError.code !== 'PGRST116') { // PGRST116 means no rows returned
+        setError("Email already exists. Please log in instead.")
+        console.error("Email check error:", checkError)
+        return
+      }
+
+      if (existingUser) {
+        setError("An account with this email already exists. Please log in instead.")
+        return
+      }
+
       // 1. Sign up with Supabase Auth
-      const { data, error } = await supabase.auth.signUp({
+      const { data, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
         options: {
@@ -42,35 +106,105 @@ export default function SignupPage() {
             name,
             role,
           },
+          emailRedirectTo: `${SITE_URL}/dashboard`,
         },
       })
 
-      if (error) throw error
+      if (signUpError) {
+        let errorMessage = "An error occurred during signup. Please try again."
+        
+        if (typeof signUpError === 'object' && signUpError !== null) {
+          switch (signUpError.message) {
+            case "User already registered":
+              errorMessage = "An account with this email already exists. Please log in instead."
+              break
+            case "Password should be at least 6 characters":
+              errorMessage = "Password must be at least 6 characters long"
+              break
+            case "Unable to validate email address":
+              errorMessage = "Please enter a valid email address"
+              break
+            case "Rate limit exceeded":
+              errorMessage = "Too many signup attempts. Please try again later"
+              break
+            default:
+              errorMessage = signUpError.message || errorMessage
+          }
+        }
+        
+        setError(errorMessage)
+        return
+      }
+
+      if (!data?.user?.id) {
+        setError("Failed to create user account. Please try again.")
+        return
+      }
 
       // 2. Create user profile in database
       const { error: profileError } = await supabase.from("users").insert([
         {
-          id: data.user?.id,
+          id: data.user.id,
           name,
           email,
           role,
         },
       ])
 
-      if (profileError) throw profileError
+      if (profileError) {
+        // If profile creation fails, attempt to delete the auth user
+        try {
+          await supabase.auth.admin.deleteUser(data.user.id)
+        } catch (deleteError) {
+          console.error("Failed to cleanup auth user after profile creation error:", deleteError)
+        }
+        
+        let errorMessage = "Failed to create user profile. Please try again."
+        
+        if (typeof profileError === 'object' && profileError !== null) {
+          if (profileError.code === "23505") {
+            errorMessage = "An account with this email already exists. Please log in instead."
+          } else if (profileError.code === "23503") {
+            errorMessage = "An account with this email already exists. Please log in instead."
+          } else if (profileError.message) {
+            errorMessage = profileError.message
+          }
+        }
+        
+        setError(errorMessage)
+        return
+      }
 
       toast({
-        title: "Account created!",
-        description: "Please check your email to confirm your account.",
+        title: "Account created successfully!",
+        description: "Please check your email to verify your account. Check your spam folder if you don't see it.",
       })
 
       router.push("/login")
     } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || "Something went wrong. Please try again.",
-        variant: "destructive",
-      })
+      console.error("Signup error:", error)
+      
+      // Handle empty error object or unexpected errors
+      let errorMessage = "An unexpected error occurred. Please try again."
+      
+      if (error && typeof error === 'object') {
+        if (error.message && typeof error.message === 'string') {
+          errorMessage = error.message
+        } else if (error.error_description) {
+          errorMessage = error.error_description
+        }
+      }
+      
+      // Don't show duplicate error messages
+      if (!error?.message?.includes("Please") && !error?.message?.includes("Passwords")) {
+        toast({
+          title: "Signup failed",
+          description: errorMessage,
+          variant: "destructive",
+        })
+      }
+      
+      setError(errorMessage)
     } finally {
       setIsLoading(false)
     }
@@ -132,6 +266,14 @@ export default function SignupPage() {
               </TabsList>
               <TabsContent value="email">
                 <form onSubmit={handleSignUp}>
+                  {error && (
+                    <div className="px-6 pb-4">
+                      <Alert variant="destructive">
+                        <ExclamationTriangleIcon className="h-4 w-4" />
+                        <AlertDescription>{error}</AlertDescription>
+                      </Alert>
+                    </div>
+                  )}
                   <CardContent className="space-y-4">
                     <div className="space-y-2">
                       <Label htmlFor="name">Full Name</Label>
@@ -159,9 +301,21 @@ export default function SignupPage() {
                       <Input
                         id="password"
                         type="password"
-                        placeholder="Create a password"
+                        placeholder="Create a password (min. 6 characters)"
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
+                        required
+                        minLength={6}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="confirmPassword">Confirm Password</Label>
+                      <Input
+                        id="confirmPassword"
+                        type="password"
+                        placeholder="Confirm your password"
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
                         required
                       />
                     </div>

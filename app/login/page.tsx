@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { motion } from "framer-motion"
@@ -14,6 +14,8 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useToast } from "@/components/ui/use-toast"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { ExclamationTriangleIcon } from "@radix-ui/react-icons"
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://skilllink-one.vercel.app';
@@ -22,38 +24,116 @@ export default function LoginPage() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [showResendButton, setShowResendButton] = useState(false)
   const router = useRouter()
   const { toast } = useToast()
   const supabase = createClientComponentClient()
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setIsLoading(true)
+  useEffect(() => {
+    const checkSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (session) {
+        toast({
+          title: "Already logged in",
+          description: "You are already logged in. Redirecting to dashboard...",
+        })
+        router.replace("/dashboard")
+      }
+    }
+    checkSession()
+  }, [])
 
+  const handleResendConfirmation = async () => {
     try {
-      // Clear any previous session data first to prevent conflicts
-      await supabase.auth.signOut({ scope: 'local' })
-      
-      // Attempt to sign in with password
-      const { data, error } = await supabase.auth.signInWithPassword({
+      setIsLoading(true)
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
         email,
-        password,
       })
 
       if (error) throw error
 
       toast({
+        title: "Verification email sent",
+        description: "Please check your email to verify your account. Check your spam folder if you don't see it.",
+      })
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to resend verification email",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setIsLoading(true)
+    setError(null)
+    setShowResendButton(false)
+
+    try {
+      if (!email || !password) {
+        setError("Please fill in all fields")
+        return
+      }
+
+      if (!email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) {
+        setError("Please enter a valid email address")
+        return
+      }
+
+      if (password.length < 6) {
+        setError("Password must be at least 6 characters long")
+        return
+      }
+
+      await supabase.auth.signOut({ scope: 'local' })
+
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      })
+
+      if (error) {
+        switch (error.message) {
+          case "Invalid login credentials":
+            setError("Invalid email or password. Please try again.")
+            break
+          case "Email not confirmed":
+            setError("Please verify your email before logging in. Check your inbox and spam folder for the verification email.")
+            setShowResendButton(true)
+            break
+          case "Too many requests":
+            setError("Too many login attempts. Please try again in a few minutes.")
+            break
+          case "User not found":
+            setError("No account found with this email. Please check your email or sign up.")
+            break
+          default:
+            setError(error.message || "An error occurred during login")
+        }
+        return
+      }
+
+      setError(null)
+      
+      toast({
         title: "Welcome back!",
         description: "You have successfully logged in.",
       })
 
-      // Use replace instead of push to prevent going back to login page
       router.replace("/dashboard")
     } catch (error: any) {
       console.error("Login error:", error)
+      setError("An unexpected error occurred. Please try again.")
+      
       toast({
-        title: "Error",
-        description: error.message || "Invalid login credentials.",
+        title: "Login failed",
+        description: error.message || "An unexpected error occurred",
         variant: "destructive",
       })
     } finally {
@@ -70,7 +150,7 @@ export default function LoginPage() {
         email,
         options: {
           emailRedirectTo: `${SITE_URL}/dashboard`,
-          shouldCreateUser: false, // Only allow existing users to login
+          shouldCreateUser: false,
         },
       })
 
@@ -92,7 +172,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col dark:bg-black ">
+    <div className="min-h-screen flex flex-col dark:bg-black">
       <Navbar />
       <main className="flex-grow flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 dark:bg-black">
         <motion.div
@@ -113,6 +193,28 @@ export default function LoginPage() {
               </TabsList>
               <TabsContent value="email">
                 <form onSubmit={handleLogin}>
+                  {error && (
+                    <div className="px-6 pb-4">
+                      <Alert variant="destructive">
+                        <ExclamationTriangleIcon className="h-4 w-4" />
+                        <AlertDescription>
+                          {error}
+                          {showResendButton && (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="mt-2 w-full"
+                              onClick={handleResendConfirmation}
+                              disabled={isLoading}
+                            >
+                              Resend verification email
+                            </Button>
+                          )}
+                        </AlertDescription>
+                      </Alert>
+                    </div>
+                  )}
                   <CardContent className="space-y-4">
                     <div className="space-y-2">
                       <Label htmlFor="email">Email</Label>
