@@ -17,57 +17,51 @@ import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 import { useToast } from "@/components/ui/use-toast"
 import { useRouter, useSearchParams } from "next/navigation"
 
-// Component that uses useSearchParams (needs Suspense boundary)
-function TabSelector({ setActiveTab }: { setActiveTab: (tab: string) => void }) {
+// Client component that safely uses useSearchParams
+function TabParamsHandler({ onTabChange }: { onTabChange: (tab: string) => void }) {
   const searchParams = useSearchParams()
   const tabParam = searchParams.get('tab')
   const validTabs = ['bookings', 'availability', 'profile', 'skills', 'notifications']
   
-  // Update active tab based on URL parameter
   useEffect(() => {
     if (tabParam && validTabs.includes(tabParam)) {
-      setActiveTab(tabParam)
+      onTabChange(tabParam)
     }
-  }, [tabParam, setActiveTab])
+  }, [tabParam, onTabChange])
   
   return null
 }
 
 export default function DashboardPage() {
-  // Initialize arrays with empty arrays instead of null by default
   const [user, setUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState("bookings") // Default to bookings tab
-  const [notifications, setNotifications] = useState<any[]>([]) // Initialize with empty array
+  const validTabs = ['bookings', 'availability', 'profile', 'skills', 'notifications']
+  const [activeTab, setActiveTab] = useState("bookings")
+  const [notifications, setNotifications] = useState<any[]>([])
   const [unreadCount, setUnreadCount] = useState(0)
 
   const router = useRouter()
   const { toast } = useToast()
   const supabase = createClientComponentClient()
-  const bookingsListRef = useRef<any>(null);
-  
-  // Use a state updater function that can be passed to the TabSelector component
+  const bookingsListRef = useRef<any>(null)
+
   const updateActiveTab = useCallback((tab: string) => {
     setActiveTab(tab);
   }, []);
-  
-  // Function to fetch user data
+
   const fetchUserData = useCallback(async () => {
     try {
-      // First check if we have a valid session
       const {
         data: { session },
         error: sessionError
       } = await supabase.auth.getSession()
 
-      // If there's a session error or no session, redirect to login
       if (sessionError || !session) {
         console.log("No valid session found, redirecting to login")
         router.push("/login")
         return
       }
 
-      // Get user data from the database
       const { data, error } = await supabase
         .from("users")
         .select("*")
@@ -79,7 +73,6 @@ export default function DashboardPage() {
         throw error
       }
 
-      // Update user state with the retrieved data
       setUser(data)
     } catch (error: any) {
       console.error("Dashboard error:", error)
@@ -93,35 +86,29 @@ export default function DashboardPage() {
     }
   }, [supabase, router, toast])
 
-  // Initial fetch of user data
   useEffect(() => {
     fetchUserData();
   }, [fetchUserData]);
 
-  // Function to handle profile updates
   const handleProfileUpdate = useCallback(() => {
     console.log("Dashboard: handleProfileUpdate called - refreshing user data");
     fetchUserData();
   }, [fetchUserData]);
 
-  // Function to handle tab changes
   const handleTabChange = (value: string) => {
     setActiveTab(value)
     router.push(`/dashboard?tab=${value}`, { scroll: false })
   }
 
   const fetchBookings = () => {
-    // Trigger refresh in BookingsList component if it exists
     if (bookingsListRef.current?.fetchBookings) {
       bookingsListRef.current.fetchBookings();
     }
   }
 
-  // Subscribe to notifications only when user is available
   useEffect(() => {
     if (!user) return
 
-    // Subscribe to notifications
     const notificationsChannel = supabase
       .channel('notifications_channel')
       .on(
@@ -133,20 +120,15 @@ export default function DashboardPage() {
           filter: `user_id=eq.${user.id}`,
         },
         (payload) => {
-          // Add new notification to state
           setNotifications(prev => [payload.new, ...(prev || [])])
-          // Increment unread count
           setUnreadCount(prev => prev + 1)
           
-          // Show toast notification
           toast({
             title: payload.new.title,
             description: payload.new.message,
           })
 
-          // If the notification is about a booking, refresh the bookings list
           if (payload.new.data?.booking_id) {
-            // Trigger bookings refresh in BookingsList component
             if (activeTab === "bookings") {
               fetchBookings()
             }
@@ -155,7 +137,6 @@ export default function DashboardPage() {
       )
       .subscribe()
 
-    // Fetch existing notifications
     const fetchNotifications = async () => {
       try {
         const { data: notifs, error } = await supabase
@@ -171,7 +152,6 @@ export default function DashboardPage() {
         }
       } catch (err) {
         console.error("Error fetching notifications:", err)
-        // Initialize with empty array on error
         setNotifications([])
         setUnreadCount(0)
       }
@@ -179,7 +159,6 @@ export default function DashboardPage() {
 
     fetchNotifications()
 
-    // Cleanup subscription
     return () => {
       supabase.removeChannel(notificationsChannel)
     }
@@ -199,7 +178,6 @@ export default function DashboardPage() {
     }
   }
 
-  // Safe rendering for loading state
   if (loading) {
     return (
       <div className="min-h-screen flex flex-col">
@@ -212,7 +190,6 @@ export default function DashboardPage() {
     )
   }
 
-  // Safe guard for user not loaded
   if (!user) {
     return (
       <div className="min-h-screen flex flex-col">
@@ -232,18 +209,12 @@ export default function DashboardPage() {
     <div className="min-h-screen flex flex-col bg-white dark:bg-gray-950 transition-colors duration-300">
       <Navbar />
       
-      {/* This suspense boundary is required for useSearchParams() */}
-      <Suspense fallback={
-        <div className="flex-grow container mx-auto px-4 py-8 flex justify-center items-center">
-          <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-purple-600"></div>
-        </div>
-      }>
-        <TabSelector setActiveTab={updateActiveTab} />
+      <Suspense fallback={null}>
+        <TabParamsHandler onTabChange={updateActiveTab} />
       </Suspense>
       
       <main className="flex-grow container mx-auto px-4 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-
           <DashboardSidebar 
             user={user} 
             activeTab={activeTab} 
@@ -297,7 +268,6 @@ export default function DashboardPage() {
                           variant="outline"
                           size="sm"
                           onClick={async () => {
-                            // Mark all as read
                             const { error } = await supabase
                               .from('notifications')
                               .update({ is_read: true })
@@ -326,7 +296,6 @@ export default function DashboardPage() {
                   </div>
                 </TabsContent>
               </Tabs>
-
             </motion.div>
           </div>
         </div>
