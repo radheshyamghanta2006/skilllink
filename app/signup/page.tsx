@@ -53,55 +53,13 @@ export default function SignupPage() {
     setError(null) // Clear previous errors
 
     try {
-      // Enhanced validation
-      if (!email || !password || !confirmPassword || !name) {
-        setError("Please fill in all fields")
-        return // Return early instead of throwing
-      }
 
-      if (!email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) {
-        setError("Please enter a valid email address")
-        return
-      }
-
-      if (password.length < 6) {
-        setError("Password must be at least 6 characters long")
-        return
-      }
-
-      if (password !== confirmPassword) {
-        setError("Passwords do not match")
-        return
-      }
-
-      if (name.length < 2) {
-        setError("Please enter your full name")
-        return
-      }
-
-      // Check if email already exists in auth
-      const { data: existingUser, error: checkError } = await supabase
-        .from("users")
-        .select("id")
-        .eq("email", email)
-        .single()
-
-      if (checkError && checkError.code !== 'PGRST116') { // PGRST116 means no rows returned
-        setError("Email already exists. Please log in instead.")
-        console.error("Email check error:", checkError)
-        return
-      }
-
-      if (existingUser) {
-        setError("An account with this email already exists. Please log in instead.")
-        return
-      }
-
-      // 1. Sign up with Supabase Auth
-      const { data, error: signUpError } = await supabase.auth.signUp({
+      // Sign up with Supabase Auth (profile will be created automatically via trigger)
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
+          emailRedirectTo: `${window.location.origin}/api/auth/callback`,
           data: {
             name,
             role,
@@ -141,46 +99,14 @@ export default function SignupPage() {
         return
       }
 
-      // 2. Create user profile in database
-      const { error: profileError } = await supabase.from("users").insert([
-        {
-          id: data.user.id,
-          name,
-          email,
-          role,
-        },
-      ])
-
-      if (profileError) {
-        // If profile creation fails, attempt to delete the auth user
-        try {
-          await supabase.auth.admin.deleteUser(data.user.id)
-        } catch (deleteError) {
-          console.error("Failed to cleanup auth user after profile creation error:", deleteError)
-        }
-        
-        let errorMessage = "Failed to create user profile. Please try again."
-        
-        if (typeof profileError === 'object' && profileError !== null) {
-          if (profileError.code === "23505") {
-            errorMessage = "An account with this email already exists. Please log in instead."
-          } else if (profileError.code === "23503") {
-            errorMessage = "An account with this email already exists. Please log in instead."
-          } else if (profileError.message) {
-            errorMessage = profileError.message
-          }
-        }
-        
-        setError(errorMessage)
-        return
-      }
-
       toast({
-        title: "Account created successfully!",
-        description: "Please check your email to verify your account. Check your spam folder if you don't see it.",
+        title: "Account created!",
+        description: "Please check your email to confirm your account. The link will expire in 24 hours.",
+
       })
 
-      router.push("/login")
+      // Redirect to verify email page with success message
+      router.push(`/verify-email?success=true&email=${encodeURIComponent(email)}`)
     } catch (error: any) {
       console.error("Signup error:", error)
       
@@ -218,12 +144,9 @@ export default function SignupPage() {
       const { error } = await supabase.auth.signInWithOtp({
         email,
         options: {
-          emailRedirectTo: `${SITE_URL}/dashboard`,
-          shouldCreateUser: true, // Allow new users to sign up with magic link
-          data: {
-            name,
-            role,
-          },
+
+          emailRedirectTo: `${window.location.origin}/api/auth/callback`,
+
         },
       })
 
@@ -231,8 +154,11 @@ export default function SignupPage() {
 
       toast({
         title: "Magic link sent!",
-        description: "Please check your email for the login link.",
+        description: "Please check your email for the login link. The link will expire in 24 hours.",
       })
+
+      // Redirect to verify email page
+      router.push(`/verify-email?success=true&email=${encodeURIComponent(email)}`)
     } catch (error: any) {
       toast({
         title: "Error",

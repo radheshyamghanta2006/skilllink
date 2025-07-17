@@ -17,6 +17,8 @@ import { useToast } from "@/components/ui/use-toast"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { ExclamationTriangleIcon } from "@radix-ui/react-icons"
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
+import { useSearchParams } from "next/navigation"
+import { useEffect } from "react"
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://skilllink-one.vercel.app';
 
@@ -29,6 +31,45 @@ export default function LoginPage() {
   const router = useRouter()
   const { toast } = useToast()
   const supabase = createClientComponentClient()
+  const searchParams = useSearchParams()
+
+  // Handle auth callback errors
+  useEffect(() => {
+    const error = searchParams.get("error")
+    const message = searchParams.get("message")
+    
+    if (error && message) {
+      let title = "Authentication Error"
+      let description = message
+      
+      switch (error) {
+        case "otp_expired":
+          title = "Link Expired"
+          description = "The email verification link has expired. Please request a new one."
+          break
+        case "access_denied":
+          title = "Access Denied"
+          description = "The authentication link is invalid or has already been used."
+          break
+        case "session_error":
+          title = "Session Error"
+          description = message
+          break
+        default:
+          title = "Authentication Error"
+          description = message
+      }
+      
+      toast({
+        title,
+        description,
+        variant: "destructive",
+      })
+      
+      // Clean up URL parameters
+      router.replace("/login", { scroll: false })
+    }
+  }, [searchParams, toast, router])
 
   useEffect(() => {
     const checkSession = async () => {
@@ -149,8 +190,8 @@ export default function LoginPage() {
       const { error } = await supabase.auth.signInWithOtp({
         email,
         options: {
-          emailRedirectTo: `${SITE_URL}/dashboard`,
-          shouldCreateUser: false,
+          emailRedirectTo: `${window.location.origin}/api/auth/callback`,
+
         },
       })
 
@@ -158,7 +199,7 @@ export default function LoginPage() {
 
       toast({
         title: "Magic link sent!",
-        description: "Please check your email for the login link.",
+        description: "Please check your email for the login link. The link will expire in 24 hours.",
       })
     } catch (error: any) {
       toast({
@@ -274,6 +315,12 @@ export default function LoginPage() {
                         onChange={(e) => setEmail(e.target.value)}
                         required
                       />
+                    </div>
+                    <div className="text-sm text-gray-600">
+                      <p>We'll send you a secure login link to your email.</p>
+                      <p className="mt-1">
+                        <strong>Note:</strong> Email links expire after 24 hours. If your link has expired, simply request a new one.
+                      </p>
                     </div>
                   </CardContent>
                   <CardFooter className="flex flex-col space-y-4">

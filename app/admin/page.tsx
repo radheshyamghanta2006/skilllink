@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 import { useToast } from "@/components/ui/use-toast"
-import { CheckCircle, Search, User, Calendar, Star } from "lucide-react"
+import { CheckCircle, Search, User, Calendar, Star, Database, RefreshCw } from "lucide-react"
 
 export default function AdminPage() {
   const [user, setUser] = useState<any>(null)
@@ -24,6 +24,8 @@ export default function AdminPage() {
   const [reviews, setReviews] = useState<any[]>([])
   const [searchTerm, setSearchTerm] = useState("")
   const [filterStatus, setFilterStatus] = useState("all")
+  const [isSeeding, setIsSeeding] = useState(false)
+  const [seedResult, setSeedResult] = useState<{ success?: boolean; error?: string; result?: any } | null>(null)
   const router = useRouter()
   const { toast } = useToast()
   const supabase = createClientComponentClient()
@@ -298,6 +300,56 @@ export default function AdminPage() {
     }
   }
 
+  const handleSeedDatabase = async () => {
+    if (!confirm("Are you sure you want to seed the database? This will create sample data including users, skills, bookings, and reviews.")) {
+      return
+    }
+
+    setIsSeeding(true)
+    setSeedResult(null)
+
+    try {
+      const response = await fetch("/api/seed", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to seed database")
+      }
+
+      setSeedResult({ success: true, result: data.result })
+      toast({
+        title: "Database Seeded Successfully!",
+        description: `Created sample data: ${data.result?.createdUsers || 0} users and related content.`,
+      })
+
+      // Refresh the data after seeding
+      fetchFlags()
+      fetchUsers()
+      fetchBookings()
+      fetchReviews()
+    } catch (error: any) {
+      console.error("Error seeding database:", error)
+      setSeedResult({ error: error.message })
+      toast({
+        title: "Seeding Failed",
+        description: error.message || "Failed to seed database",
+        variant: "destructive",
+      })
+    } finally {
+      setIsSeeding(false)
+    }
+  }
+
+  const handleClearSeedResult = () => {
+    setSeedResult(null)
+  }
+
   const filteredFlags = flags.filter((flag) => {
     if (filterStatus !== "all" && flag.status !== filterStatus) return false
 
@@ -408,6 +460,109 @@ export default function AdminPage() {
           </Card>
         </div>
 
+        {/* Database Seeding Section */}
+        <div className="mb-8">
+          <Card className="border-2 border-purple-100 bg-gradient-to-r from-purple-50 to-blue-50">
+            <CardHeader>
+              <CardTitle className="flex items-center space-x-2">
+                <Database className="h-5 w-5 text-purple-600" />
+                <span>Database Management</span>
+              </CardTitle>
+              <CardDescription>
+                Seed the database with sample data for testing and development purposes.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-col space-y-4">
+                {seedResult?.success && (
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                    <div className="flex items-start space-x-3">
+                      <CheckCircle className="h-5 w-5 text-green-600 mt-0.5" />
+                      <div className="flex-1">
+                        <h4 className="text-sm font-medium text-green-800">Seeding Completed Successfully!</h4>
+                        <p className="text-sm text-green-700 mt-1">
+                          Sample data has been created in your database. Check the tabs below to see the new content.
+                        </p>
+                        {seedResult.result && (
+                          <div className="mt-2 text-xs text-green-600">
+                            <p>Created: {seedResult.result.createdUsers || 0} users</p>
+                            <p>Skills: {seedResult.result.results?.skills?.length || 0} added</p>
+                            <p>Bookings: {seedResult.result.results?.bookings?.length || 0} created</p>
+                            <p>Messages: {seedResult.result.results?.messages?.length || 0} added</p>
+                          </div>
+                        )}
+                      </div>
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        onClick={handleClearSeedResult}
+                        className="text-green-600 hover:bg-green-100"
+                      >
+                        ✕
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
+                {seedResult?.error && (
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                    <div className="flex items-start space-x-3">
+                      <span className="text-red-600 text-lg">⚠️</span>
+                      <div className="flex-1">
+                        <h4 className="text-sm font-medium text-red-800">Seeding Failed</h4>
+                        <p className="text-sm text-red-700 mt-1">{seedResult.error}</p>
+                      </div>
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        onClick={handleClearSeedResult}
+                        className="text-red-600 hover:bg-red-100"
+                      >
+                        ✕
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex items-center justify-between">
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium">Sample Data Generation</p>
+                    <p className="text-xs text-gray-600">
+                      Creates users, skills, bookings, reviews, messages, and admin flags for testing.
+                    </p>
+                  </div>
+                  <div className="flex space-x-2">
+                    <Button
+                      variant="outline"
+                      onClick={() => router.push("/admin/seed")}
+                      className="bg-white hover:bg-gray-50"
+                    >
+                      Advanced Options
+                    </Button>
+                    <Button
+                      onClick={handleSeedDatabase}
+                      disabled={isSeeding}
+                      className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white"
+                    >
+                      {isSeeding ? (
+                        <>
+                          <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                          Seeding...
+                        </>
+                      ) : (
+                        <>
+                          <Database className="mr-2 h-4 w-4" />
+                          Seed Database
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
         <div className="flex flex-col md:flex-row gap-4 mb-6">
           <div className="relative flex-grow">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
@@ -438,7 +593,7 @@ export default function AdminPage() {
           </div>
         </div>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
           <TabsList className="grid grid-cols-4 mb-8">
             <TabsTrigger value="flags">Flags</TabsTrigger>
             <TabsTrigger value="users">Users</TabsTrigger>

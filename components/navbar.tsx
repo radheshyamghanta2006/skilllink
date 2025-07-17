@@ -195,8 +195,14 @@ export function Navbar() {
             transition={{ duration: 0.5 }}
             className="relative w-16 h-16"
           >
-
-            <Image src="/logo.png?height=50&width=50" alt="SkillLink Logo" fill className="object-contain" />
+            <Image 
+              src="/logo.png" 
+              alt="SkillLink Logo" 
+              fill 
+              className="object-contain" 
+              priority
+              sizes="64px"
+            />
 
           </motion.div>
           <span className="font-bold text-xl bg-gradient-to-r from-purple-600 to-blue-600 dark:from-purple-400 dark:to-blue-400 bg-clip-text text-transparent group-hover:bg-gradient-to-r group-hover:from-purple-700 group-hover:to-blue-700 dark:group-hover:from-purple-300 dark:group-hover:to-blue-300 transition-all duration-300">
