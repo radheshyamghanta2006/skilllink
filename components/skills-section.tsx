@@ -380,13 +380,6 @@ export function SkillsSection({ user }: SkillsSectionProps) {
                   <Button
                     type="submit"
                     className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
-                    onClick={(e) => {
-                      console.log("Add Skill button clicked");
-                      // This is a backup in case the form submit event doesn't fire
-                      if (!e.defaultPrevented) {
-                        handleAddSkill(e as unknown as React.FormEvent);
-                      }
-                    }}
                   >
                     Add Skill
                   </Button>

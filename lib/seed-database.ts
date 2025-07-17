@@ -38,63 +38,140 @@ export async function seedDatabase(supabaseUrl: string, supabaseKey: string) {
       flags: [] as string[],
     }
 
-    // Create users in auth system first
+    // Create users in auth system first with more diverse data
     const users = [
       {
-        email: "john@example.com",
+        email: "john.smith@example.com",
         password: "password123",
         userData: {
           name: "John Smith",
           role: "both",
           current_mode: "provider",
           profile_image: "/placeholder.svg?height=200&width=200",
-          bio: "Experienced web developer with 5+ years of experience in React and Node.js.",
+          bio: "Full-stack developer with 5+ years of experience. Specializing in React, Node.js, and cloud architecture. Also passionate about photography and cooking.",
           location: "New York, NY",
+          phone: "+1-555-0101",
+          distance: 10,
         },
       },
       {
-        email: "alice@example.com",
+        email: "alice.johnson@example.com",
         password: "password123",
         userData: {
           name: "Alice Johnson",
           role: "seeker",
           profile_image: "/placeholder.svg?height=200&width=200",
-          bio: "Looking to learn new skills and expand my horizons.",
+          bio: "Marketing professional looking to learn new skills. Interested in expanding my technical knowledge and creative abilities.",
           location: "San Francisco, CA",
+          phone: "+1-555-0102",
+          distance: 5,
         },
       },
       {
-        email: "bob@example.com",
+        email: "bob.williams@example.com",
         password: "password123",
         userData: {
           name: "Bob Williams",
           role: "provider",
           profile_image: "/placeholder.svg?height=200&width=200",
-          bio: "Certified yoga instructor with 10+ years of experience.",
+          bio: "Certified yoga instructor with 10+ years of experience. Also skilled in meditation, wellness coaching, and nutrition planning.",
           location: "Los Angeles, CA",
+          phone: "+1-555-0103",
+          distance: 8,
         },
       },
       {
-        email: "emma@example.com",
+        email: "emma.davis@example.com",
         password: "password123",
         userData: {
           name: "Emma Davis",
           role: "both",
           current_mode: "seeker",
           profile_image: "/placeholder.svg?height=200&width=200",
-          bio: "Professional photographer and amateur cook looking to exchange skills.",
+          bio: "Professional photographer and amateur chef. Love teaching creative skills and learning new technologies.",
           location: "Chicago, IL",
+          phone: "+1-555-0104",
+          distance: 15,
         },
       },
       {
-        email: "michael@example.com",
+        email: "carlos.rodriguez@example.com",
+        password: "password123",
+        userData: {
+          name: "Carlos Rodriguez",
+          role: "provider",
+          profile_image: "/placeholder.svg?height=200&width=200",
+          bio: "Native Spanish speaker and certified language teacher. 8 years experience teaching Spanish and English. Also skilled in guitar and music production.",
+          location: "Miami, FL",
+          phone: "+1-555-0105",
+          distance: 12,
+        },
+      },
+      {
+        email: "sarah.chen@example.com",
+        password: "password123",
+        userData: {
+          name: "Sarah Chen",
+          role: "both",
+          current_mode: "provider",
+          profile_image: "/placeholder.svg?height=200&width=200",
+          bio: "Data scientist and AI researcher. PhD in Machine Learning. Passionate about teaching data science and learning creative arts.",
+          location: "Seattle, WA",
+          phone: "+1-555-0106",
+          distance: 7,
+        },
+      },
+      {
+        email: "mike.thompson@example.com",
+        password: "password123",
+        userData: {
+          name: "Mike Thompson",
+          role: "seeker",
+          profile_image: "/placeholder.svg?height=200&width=200",
+          bio: "Small business owner looking to expand my digital skills. Interested in web development, digital marketing, and design.",
+          location: "Austin, TX",
+          phone: "+1-555-0107",
+          distance: 20,
+        },
+      },
+      {
+        email: "linda.patel@example.com",
+        password: "password123",
+        userData: {
+          name: "Linda Patel",
+          role: "provider",
+          profile_image: "/placeholder.svg?height=200&width=200",
+          bio: "Professional chef specializing in Indian and Mediterranean cuisine. 15 years in culinary arts. Also teach baking and pastry making.",
+          location: "Denver, CO",
+          phone: "+1-555-0108",
+          distance: 6,
+        },
+      },
+      {
+        email: "alex.kim@example.com",
+        password: "password123",
+        userData: {
+          name: "Alex Kim",
+          role: "both",
+          current_mode: "provider",
+          profile_image: "/placeholder.svg?height=200&width=200",
+          bio: "UX/UI designer with a background in psychology. Love teaching design thinking and learning about emerging technologies.",
+          location: "Portland, OR",
+          phone: "+1-555-0109",
+          distance: 9,
+        },
+      },
+      {
+        email: "michael.brown@example.com",
         password: "password123",
         userData: {
           name: "Michael Brown",
           role: "admin",
           profile_image: "/placeholder.svg?height=200&width=200",
-          bio: "Platform administrator and community manager.",
+          bio: "Platform administrator and community manager. Former software engineer with expertise in system administration.",
           location: "Austin, TX",
+          phone: "+1-555-0110",
+          distance: 5,
         },
       },
     ]
@@ -147,63 +224,260 @@ export async function seedDatabase(supabaseUrl: string, supabaseKey: string) {
       }
     }
 
-    // Add skills for users
+    // Add skills for users with more comprehensive data
     const skills = [
       {
-        user_email: "john@example.com",
+        user_email: "john.smith@example.com",
         skills: [
           {
-            skill_name: "Web Development",
+            skill_name: "React Development",
             category: "Technology",
             intent: "provider",
-            description: "Full-stack web development with React, Node.js, and MongoDB.",
+            description: "Advanced React development including hooks, context, and performance optimization.",
           },
           {
-            skill_name: "Mobile App Development",
+            skill_name: "Node.js Backend",
             category: "Technology",
             intent: "provider",
-            description: "iOS and Android app development with React Native.",
+            description: "Building scalable backend services with Express, MongoDB, and PostgreSQL.",
           },
           {
-            skill_name: "Cooking",
-            category: "Cooking",
+            skill_name: "Cloud Architecture",
+            category: "Technology",
+            intent: "provider",
+            description: "AWS and Azure cloud infrastructure design and deployment.",
+          },
+          {
+            skill_name: "Photography",
+            category: "Arts & Crafts",
             intent: "seeker",
-            description: "Interested in learning Italian cuisine.",
+            description: "Interested in learning portrait and landscape photography techniques.",
           },
         ],
       },
       {
-        user_email: "bob@example.com",
+        user_email: "alice.johnson@example.com",
         skills: [
           {
-            skill_name: "Yoga",
+            skill_name: "Digital Marketing",
+            category: "Business",
+            intent: "provider",
+            description: "Social media marketing, SEO, and content strategy for small businesses.",
+          },
+          {
+            skill_name: "Web Development",
+            category: "Technology",
+            intent: "seeker",
+            description: "Learning HTML, CSS, and JavaScript fundamentals.",
+          },
+          {
+            skill_name: "Data Analysis",
+            category: "Technology",
+            intent: "seeker",
+            description: "Interested in learning Excel, Python for data analysis.",
+          },
+        ],
+      },
+      {
+        user_email: "bob.williams@example.com",
+        skills: [
+          {
+            skill_name: "Hatha Yoga",
             category: "Fitness",
             intent: "provider",
-            description: "Hatha and Vinyasa yoga for all levels.",
+            description: "Traditional Hatha yoga for beginners to advanced practitioners.",
+          },
+          {
+            skill_name: "Vinyasa Yoga",
+            category: "Fitness",
+            intent: "provider",
+            description: "Dynamic flow sequences connecting breath with movement.",
           },
           {
             skill_name: "Meditation",
             category: "Fitness",
             intent: "provider",
-            description: "Mindfulness meditation techniques for stress reduction.",
+            description: "Mindfulness meditation and stress reduction techniques.",
+          },
+          {
+            skill_name: "Nutrition Planning",
+            category: "Fitness",
+            intent: "provider",
+            description: "Personalized nutrition plans for wellness and fitness goals.",
           },
         ],
       },
       {
-        user_email: "emma@example.com",
+        user_email: "emma.davis@example.com",
         skills: [
           {
-            skill_name: "Photography",
+            skill_name: "Portrait Photography",
             category: "Arts & Crafts",
             intent: "provider",
-            description: "Portrait and landscape photography.",
+            description: "Professional portrait photography and photo editing.",
           },
-          { skill_name: "Cooking", category: "Cooking", intent: "provider", description: "Baking and pastry making." },
+          {
+            skill_name: "Food Photography",
+            category: "Arts & Crafts",
+            intent: "provider",
+            description: "Specialized in food styling and restaurant photography.",
+          },
+          {
+            skill_name: "Baking",
+            category: "Cooking",
+            intent: "provider",
+            description: "Artisan bread baking and pastry making techniques.",
+          },
+          {
+            skill_name: "React Development",
+            category: "Technology",
+            intent: "seeker",
+            description: "Learning modern web development with React.",
+          },
+        ],
+      },
+      {
+        user_email: "carlos.rodriguez@example.com",
+        skills: [
+          {
+            skill_name: "Spanish Language",
+            category: "Languages",
+            intent: "provider",
+            description: "Native Spanish speaker offering conversational and business Spanish lessons.",
+          },
+          {
+            skill_name: "English as Second Language",
+            category: "Languages",
+            intent: "provider",
+            description: "ESL instruction for Spanish speakers.",
+          },
+          {
+            skill_name: "Guitar Lessons",
+            category: "Music",
+            intent: "provider",
+            description: "Acoustic and classical guitar for beginners to intermediate.",
+          },
+          {
+            skill_name: "Music Production",
+            category: "Music",
+            intent: "provider",
+            description: "Digital audio workstation (DAW) training and music production.",
+          },
+        ],
+      },
+      {
+        user_email: "sarah.chen@example.com",
+        skills: [
+          {
+            skill_name: "Machine Learning",
+            category: "Technology",
+            intent: "provider",
+            description: "Python-based machine learning and AI model development.",
+          },
+          {
+            skill_name: "Data Science",
+            category: "Technology",
+            intent: "provider",
+            description: "Statistical analysis, data visualization, and predictive modeling.",
+          },
+          {
+            skill_name: "Python Programming",
+            category: "Technology",
+            intent: "provider",
+            description: "Advanced Python programming for data science and automation.",
+          },
+          {
+            skill_name: "Watercolor Painting",
+            category: "Arts & Crafts",
+            intent: "seeker",
+            description: "Interested in learning traditional watercolor techniques.",
+          },
+        ],
+      },
+      {
+        user_email: "mike.thompson@example.com",
+        skills: [
+          {
+            skill_name: "Small Business Management",
+            category: "Business",
+            intent: "provider",
+            description: "15 years experience in small business operations and strategy.",
+          },
           {
             skill_name: "Web Development",
             category: "Technology",
             intent: "seeker",
-            description: "Interested in learning front-end development.",
+            description: "Learning to build websites for my business.",
+          },
+          {
+            skill_name: "Social Media Marketing",
+            category: "Business",
+            intent: "seeker",
+            description: "Want to improve my social media presence.",
+          },
+          {
+            skill_name: "Graphic Design",
+            category: "Design",
+            intent: "seeker",
+            description: "Learning design tools for marketing materials.",
+          },
+        ],
+      },
+      {
+        user_email: "linda.patel@example.com",
+        skills: [
+          {
+            skill_name: "Indian Cuisine",
+            category: "Cooking",
+            intent: "provider",
+            description: "Authentic regional Indian dishes and spice blending.",
+          },
+          {
+            skill_name: "Mediterranean Cooking",
+            category: "Cooking",
+            intent: "provider",
+            description: "Healthy Mediterranean diet recipes and techniques.",
+          },
+          {
+            skill_name: "Pastry Making",
+            category: "Cooking",
+            intent: "provider",
+            description: "French pastry techniques and dessert preparation.",
+          },
+          {
+            skill_name: "Food Styling",
+            category: "Arts & Crafts",
+            intent: "provider",
+            description: "Professional food presentation and styling for photography.",
+          },
+        ],
+      },
+      {
+        user_email: "alex.kim@example.com",
+        skills: [
+          {
+            skill_name: "UX Design",
+            category: "Design",
+            intent: "provider",
+            description: "User experience design and research methodologies.",
+          },
+          {
+            skill_name: "UI Design",
+            category: "Design",
+            intent: "provider",
+            description: "Interface design and prototyping with Figma and Sketch.",
+          },
+          {
+            skill_name: "Design Thinking",
+            category: "Design",
+            intent: "provider",
+            description: "Human-centered design process and innovation workshops.",
+          },
+          {
+            skill_name: "Swift Programming",
+            category: "Technology",
+            intent: "seeker",
+            description: "Learning iOS app development with Swift.",
           },
         ],
       },

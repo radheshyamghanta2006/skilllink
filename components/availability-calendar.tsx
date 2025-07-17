@@ -226,7 +226,7 @@ export function AvailabilityCalendar({ user }: AvailabilityCalendarProps) {
         <h2 className="text-2xl font-bold">Manage Availability</h2>
         <Button
           onClick={() => setIsModalOpen(true)}
-          className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+          className="bg-gradient-to-r from-purple-600 to blue-600 hover:from-purple-700 hover:to-blue-700"
         >
           <Plus className="mr-2 h-4 w-4" />
           Add Time Slot

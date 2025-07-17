@@ -31,11 +31,12 @@ export default function SignupPage() {
     setIsLoading(true)
 
     try {
-      // 1. Sign up with Supabase Auth
+      // Sign up with Supabase Auth (profile will be created automatically via trigger)
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
+          emailRedirectTo: `${window.location.origin}/api/auth/callback`,
           data: {
             name,
             role,
@@ -45,24 +46,13 @@ export default function SignupPage() {
 
       if (error) throw error
 
-      // 2. Create user profile in database
-      const { error: profileError } = await supabase.from("users").insert([
-        {
-          id: data.user?.id,
-          name,
-          email,
-          role,
-        },
-      ])
-
-      if (profileError) throw profileError
-
       toast({
         title: "Account created!",
-        description: "Please check your email to confirm your account.",
+        description: "Please check your email to confirm your account. The link will expire in 24 hours.",
       })
 
-      router.push("/login")
+      // Redirect to verify email page with success message
+      router.push(`/verify-email?success=true&email=${encodeURIComponent(email)}`)
     } catch (error: any) {
       toast({
         title: "Error",
@@ -82,7 +72,7 @@ export default function SignupPage() {
       const { error } = await supabase.auth.signInWithOtp({
         email,
         options: {
-          emailRedirectTo: `${window.location.origin}/dashboard`,
+          emailRedirectTo: `${window.location.origin}/api/auth/callback`,
         },
       })
 
@@ -90,8 +80,11 @@ export default function SignupPage() {
 
       toast({
         title: "Magic link sent!",
-        description: "Please check your email for the login link.",
+        description: "Please check your email for the login link. The link will expire in 24 hours.",
       })
+
+      // Redirect to verify email page
+      router.push(`/verify-email?success=true&email=${encodeURIComponent(email)}`)
     } catch (error: any) {
       toast({
         title: "Error",
