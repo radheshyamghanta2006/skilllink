@@ -462,11 +462,11 @@ export default function AdminPage() {
 
         {/* Database Seeding Section */}
         <div className="mb-8">
-          <Card className="border-2 border-purple-100 bg-gradient-to-r from-purple-50 to-blue-50">
+          <Card className="border-2 border-purple-100 dark:border-purple-800 bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-950/30 dark:to-blue-950/30">
             <CardHeader>
               <CardTitle className="flex items-center space-x-2">
-                <Database className="h-5 w-5 text-purple-600" />
-                <span>Database Management</span>
+                <Database className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+                <span className="text-gray-900 dark:text-gray-100">Database Management</span>
               </CardTitle>
               <CardDescription>
                 Seed the database with sample data for testing and development purposes.
@@ -475,16 +475,16 @@ export default function AdminPage() {
             <CardContent>
               <div className="flex flex-col space-y-4">
                 {seedResult?.success && (
-                  <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                  <div className="bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-lg p-4">
                     <div className="flex items-start space-x-3">
-                      <CheckCircle className="h-5 w-5 text-green-600 mt-0.5" />
+                      <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400 mt-0.5" />
                       <div className="flex-1">
-                        <h4 className="text-sm font-medium text-green-800">Seeding Completed Successfully!</h4>
-                        <p className="text-sm text-green-700 mt-1">
+                        <h4 className="text-sm font-medium text-green-800 dark:text-green-200">Seeding Completed Successfully!</h4>
+                        <p className="text-sm text-green-700 dark:text-green-300 mt-1">
                           Sample data has been created in your database. Check the tabs below to see the new content.
                         </p>
                         {seedResult.result && (
-                          <div className="mt-2 text-xs text-green-600">
+                          <div className="mt-2 text-xs text-green-600 dark:text-green-400">
                             <p>Created: {seedResult.result.createdUsers || 0} users</p>
                             <p>Skills: {seedResult.result.results?.skills?.length || 0} added</p>
                             <p>Bookings: {seedResult.result.results?.bookings?.length || 0} created</p>
@@ -496,7 +496,7 @@ export default function AdminPage() {
                         variant="ghost" 
                         size="sm" 
                         onClick={handleClearSeedResult}
-                        className="text-green-600 hover:bg-green-100"
+                        className="text-green-600 dark:text-green-400 hover:bg-green-100 dark:hover:bg-green-900/20"
                       >
                         ✕
                       </Button>
@@ -505,18 +505,18 @@ export default function AdminPage() {
                 )}
 
                 {seedResult?.error && (
-                  <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                  <div className="bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-lg p-4">
                     <div className="flex items-start space-x-3">
-                      <span className="text-red-600 text-lg">⚠️</span>
+                      <span className="text-red-600 dark:text-red-400 text-lg">⚠️</span>
                       <div className="flex-1">
-                        <h4 className="text-sm font-medium text-red-800">Seeding Failed</h4>
-                        <p className="text-sm text-red-700 mt-1">{seedResult.error}</p>
+                        <h4 className="text-sm font-medium text-red-800 dark:text-red-200">Seeding Failed</h4>
+                        <p className="text-sm text-red-700 dark:text-red-300 mt-1">{seedResult.error}</p>
                       </div>
                       <Button 
                         variant="ghost" 
                         size="sm" 
                         onClick={handleClearSeedResult}
-                        className="text-red-600 hover:bg-red-100"
+                        className="text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/20"
                       >
                         ✕
                       </Button>
@@ -526,8 +526,8 @@ export default function AdminPage() {
 
                 <div className="flex items-center justify-between">
                   <div className="space-y-1">
-                    <p className="text-sm font-medium">Sample Data Generation</p>
-                    <p className="text-xs text-gray-600">
+                    <p className="text-sm font-medium text-gray-900 dark:text-gray-100">Sample Data Generation</p>
+                    <p className="text-xs text-gray-600 dark:text-gray-400">
                       Creates users, skills, bookings, reviews, messages, and admin flags for testing.
                     </p>
                   </div>
@@ -535,7 +535,7 @@ export default function AdminPage() {
                     <Button
                       variant="outline"
                       onClick={() => router.push("/admin/seed")}
-                      className="bg-white hover:bg-gray-50"
+                      className="bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-200"
                     >
                       Advanced Options
                     </Button>

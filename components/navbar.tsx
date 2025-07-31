@@ -438,6 +438,15 @@ export function Navbar() {
                       <Settings className="mr-2 h-4 w-4" />
                       <span>Settings</span>
                     </DropdownMenuItem>
+                    {user.role === "admin" && (
+                      <DropdownMenuItem
+                        onClick={() => router.push("/admin")}
+                        className="cursor-pointer flex items-center text-orange-600 dark:text-orange-400 hover:text-orange-700 dark:hover:text-orange-300"
+                      >
+                        <Settings className="mr-2 h-4 w-4" />
+                        <span>Admin Panel</span>
+                      </DropdownMenuItem>
+                    )}
                   </div>
                   <DropdownMenuSeparator className="bg-gray-200 dark:bg-gray-700" />
                   <div className="p-2">
@@ -596,6 +605,16 @@ export function Navbar() {
                           Messages
                         </Button>
                       </div>
+                      {user.role === "admin" && (
+                        <Button
+                          variant="outline"
+                          onClick={() => router.push("/admin")}
+                          className="w-full justify-start text-orange-600 dark:text-orange-400 border-orange-200 dark:border-orange-700 hover:bg-orange-50 dark:hover:bg-orange-900/20"
+                        >
+                          <Settings className="mr-2 h-4 w-4" />
+                          Admin Panel
+                        </Button>
+                      )}
                       <Button
                         variant="default"
                         onClick={handleLogout}
