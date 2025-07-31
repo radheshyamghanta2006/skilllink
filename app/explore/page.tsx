@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState, useEffect } from "react"
+import { useState, useEffect, Suspense } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
 import { motion } from "framer-motion"
 import { Navbar } from "@/components/navbar"
@@ -37,7 +37,7 @@ type Skill = {
   open_to_skill_swap?: boolean
 }
 
-export default function ExplorePage() {
+function ExploreContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const supabase = createClientComponentClient()
@@ -536,5 +536,17 @@ export default function ExplorePage() {
       </main>
       <Footer />
     </div>
+  )
+}
+
+export default function ExplorePage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">Loading...</div>
+      </div>
+    }>
+      <ExploreContent />
+    </Suspense>
   )
 }

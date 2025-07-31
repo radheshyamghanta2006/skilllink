@@ -468,7 +468,7 @@ export default function AdminPage() {
                 <Database className="h-5 w-5 text-purple-600 dark:text-purple-400" />
                 <span className="text-gray-900 dark:text-gray-100">Database Management</span>
               </CardTitle>
-              <CardDescription>
+              <CardDescription className="text-gray-600 dark:text-gray-400">
                 Seed the database with sample data for testing and development purposes.
               </CardDescription>
             </CardHeader>
@@ -605,7 +605,7 @@ export default function AdminPage() {
             <Card>
               <CardHeader>
                 <CardTitle>Reported Items</CardTitle>
-                <CardDescription>Manage flagged content and user reports</CardDescription>
+                <CardDescription className="text-gray-600 dark:text-gray-400">Manage flagged content and user reports</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
@@ -690,7 +690,7 @@ export default function AdminPage() {
             <Card>
               <CardHeader>
                 <CardTitle>User Management</CardTitle>
-                <CardDescription>View and manage user accounts</CardDescription>
+                <CardDescription className="text-gray-600 dark:text-gray-400">View and manage user accounts</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
@@ -773,7 +773,7 @@ export default function AdminPage() {
             <Card>
               <CardHeader>
                 <CardTitle>Booking Management</CardTitle>
-                <CardDescription>View and manage all bookings</CardDescription>
+                <CardDescription className="text-gray-600 dark:text-gray-400">View and manage all bookings</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
@@ -860,7 +860,7 @@ export default function AdminPage() {
             <Card>
               <CardHeader>
                 <CardTitle>Review Management</CardTitle>
-                <CardDescription>Monitor and moderate user reviews</CardDescription>
+                <CardDescription className="text-gray-600 dark:text-gray-400">Monitor and moderate user reviews</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
